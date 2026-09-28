@@ -34,6 +34,6 @@ def desk() -> dict:
 
 @app.post("/api/refresh")
 def refresh() -> dict:
-    if HUB.ready:
-        HUB.refresh_quotes()
-    return HUB.snapshot()
+    if not HUB.ready:
+        return HUB.snapshot()
+    return HUB.refresh_now()

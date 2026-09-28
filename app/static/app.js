@@ -26,13 +26,13 @@ function render(data) {
     <article class="stat"><span>样本净利</span><strong class="${tone}">${money(summary.net_pnl)}</strong><em>${summary.sample.start} → ${summary.sample.end}</em></article>
     <article class="stat"><span>收益率</span><strong class="${tone}">${summary.return_pct.toFixed(2)}%</strong><em>最大回撤 ${summary.max_drawdown_pct.toFixed(2)}%</em></article>
     <article class="stat"><span>胜率</span><strong>${summary.win_rate.toFixed(1)}%</strong><em>${summary.trades} 笔 · 止盈 0.35% / 止损 0.18%</em></article>
-    <article class="stat"><span>交易时段</span><strong>${data.session_open ? "开市" : "已收盘"}</strong><em>${summary.history_source}</em></article>
+    <article class="stat"><span>交易时段</span><strong>${data.session_open ? "开市" : "已收盘"}</strong><em>行情每 15 秒自动更新，开盘后信号随 5 分钟线重算</em></article>
   `;
   sources.innerHTML = Object.entries(data.sources).map(([name, item]) => {
     const label = name === "premium" ? "IOPV" : name;
     return `<span class="pill ${item.ok ? "ok" : "bad"}">${label} ${item.ok ? "已连接" : "中断"}${item.latency_ms ? " · " + item.latency_ms + "ms" : ""}</span>`;
   }).join("");
-  stamp.textContent = data.updated_at ? "行情时间 " + data.updated_at : "";
+  stamp.textContent = data.updated_at ? "行情自动更新 " + data.updated_at : "";
 
   quoteBody.innerHTML = data.quotes.map((row) => {
     const change = row.axdata.change_pct;
@@ -152,7 +152,7 @@ async function poll() {
   try {
     const data = await load("/api/desk");
     window.__desk = data;
-    setTimeout(poll, data.ready ? 20000 : 3000);
+    setTimeout(poll, data.ready ? 5000 : 3000);
   } catch (error) {
     hero.innerHTML = `<p class="loading">页面还没拿到数据，正在重试。</p>`;
     setTimeout(poll, 3000);

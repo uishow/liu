@@ -22,6 +22,8 @@ from .strategy import (
 from .universe import BY_CODE, UNIVERSE
 
 CN = timezone(timedelta(hours=8))
+QUOTE_SECONDS = 15
+BAR_REFRESH_SECONDS = 45
 
 
 class Hub:
@@ -40,8 +42,13 @@ class Hub:
             "premium": {"ok": False, "detail": "未取到 IOPV"},
         }
         self.updated_at: str | None = None
+        self.auto_error: str | None = None
+        self.last_bar_fetch = 0.0
         self._eltdx = None
         self._ax = None
+        self._feed_lock = threading.Lock()
+        self._stop = threading.Event()
+        self._auto_started = False
 
     def bootstrap(self) -> None:
         with self.lock:
@@ -63,10 +70,12 @@ class Hub:
             self.summary = summarize(self.book)
             self.summary["sample"] = _sample_span(self.bars)
             self.summary["history_source"] = history_source
+            self.last_bar_fetch = time.time()
             self.refresh_quotes()
             with self.lock:
                 self.ready = True
                 self.error = None
+            self._start_auto()
         except Exception as exc:
             with self.lock:
                 self.error = str(exc)
@@ -74,6 +83,47 @@ class Hub:
         finally:
             with self.lock:
                 self.loading = False
+
+    def _start_auto(self) -> None:
+        if self._auto_started:
+            return
+        self._auto_started = True
+        threading.Thread(target=self._auto_loop, name="etf-auto", daemon=True).start()
+
+    def _auto_loop(self) -> None:
+        while not self._stop.wait(QUOTE_SECONDS):
+            if not self.ready:
+                continue
+            self._refresh_cycle(force_bars=False)
+
+    def refresh_now(self) -> dict:
+        self._refresh_cycle(force_bars=True)
+        return self.snapshot()
+
+    def _refresh_cycle(self, force_bars: bool) -> None:
+        with self._feed_lock:
+            try:
+                self._reload_bars(force=force_bars)
+            except Exception as exc:
+                with self.lock:
+                    self.auto_error = str(exc)
+            self.refresh_quotes()
+
+    def _reload_bars(self, force: bool) -> None:
+        now = datetime.now(CN)
+        if not bars_refresh_due(self.last_bar_fetch, time.time(), now, force=force):
+            return
+        updated = feeds.load_recent(self._eltdx, self.bars)
+        book = run_book(updated)
+        summary = summarize(book)
+        summary["sample"] = _sample_span(updated)
+        summary["history_source"] = "eltdx"
+        with self.lock:
+            self.bars = updated
+            self.book = book
+            self.summary = summary
+            self.last_bar_fetch = time.time()
+            self.auto_error = None
 
     def refresh_quotes(self) -> None:
         eltdx_rows: dict = {}
@@ -180,7 +230,24 @@ class Hub:
                 "trades": trades,
                 "equity": equity,
                 "session_open": _session_open(),
+                "auto": True,
             }
+
+
+def in_bar_window(now: datetime) -> bool:
+    current = now.astimezone(CN) if now.tzinfo else now.replace(tzinfo=CN)
+    if current.weekday() >= 5:
+        return False
+    minute = current.hour * 60 + current.minute
+    return (9 * 60 + 25) <= minute <= (15 * 60 + 10)
+
+
+def bars_refresh_due(last_fetch: float, now_ts: float, now: datetime, force: bool = False) -> bool:
+    if not in_bar_window(now):
+        return False
+    if force:
+        return True
+    return now_ts - last_fetch >= BAR_REFRESH_SECONDS
 
 
 def _latest_signal(code: str, bars) -> dict | None:

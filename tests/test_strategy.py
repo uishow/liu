@@ -1,5 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
+from app.hub import bars_refresh_due
 from app.strategy import (
     Bar,
     detect_signal,
@@ -119,3 +120,16 @@ def test_gap_open_blocks_the_session():
     day2.append(_bar(datetime(2026, 9, 28, 15, 0), 10.23))
     book = run_book({"518880": day1 + day2})
     assert book.trades == []
+
+
+def test_five_minute_bars_refresh_themselves_during_the_session():
+    cn = timezone(timedelta(hours=8))
+    opening = datetime(2026, 9, 29, 10, 12, tzinfo=cn)
+    assert bars_refresh_due(0, 100, opening) is True
+    assert bars_refresh_due(80, 100, opening) is False
+    assert bars_refresh_due(80, 130, opening) is True
+    assert bars_refresh_due(80, 100, opening, force=True) is True
+    closed = datetime(2026, 9, 29, 16, 0, tzinfo=cn)
+    assert bars_refresh_due(0, 100, closed) is False
+    weekend = datetime(2026, 10, 3, 10, 0, tzinfo=cn)
+    assert bars_refresh_due(0, 100, weekend, force=True) is False

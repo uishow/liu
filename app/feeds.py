@@ -34,28 +34,51 @@ def load_history(client) -> dict[str, list[Bar]]:
                 start=page * PAGE_SIZE,
                 count=PAGE_SIZE,
             )
-            if not series.bars:
+            page_rows = bars_from_series(series)
+            if not page_rows:
                 break
-            for bar in series.bars:
-                stamp = bar.time
-                if stamp.tzinfo is not None:
-                    stamp = stamp.replace(tzinfo=None)
-                rows.append(
-                    Bar(
-                        ts=stamp,
-                        open=float(bar.open),
-                        high=float(bar.high),
-                        low=float(bar.low),
-                        close=float(bar.close),
-                        volume=float(bar.volume_lots or 0),
-                    )
-                )
-            if len(series.bars) < PAGE_SIZE:
+            rows.extend(page_rows)
+            if len(page_rows) < PAGE_SIZE:
                 break
         unique = {bar.ts: bar for bar in rows}
         loaded[item.code] = [unique[key] for key in sorted(unique)]
     _write_cache(loaded)
     return loaded
+
+
+def load_recent(client, current: dict[str, list[Bar]], count: int = 120) -> dict[str, list[Bar]]:
+    """Merge the latest 5-minute bars into an existing history."""
+
+    merged = {code: list(series) for code, series in current.items()}
+    for item in UNIVERSE:
+        fresh = bars_from_series(client.bars.get(item.tdx_code, period="5m", start=0, count=count))
+        if not fresh:
+            continue
+        by_ts = {bar.ts: bar for bar in merged.get(item.code, [])}
+        for bar in fresh:
+            by_ts[bar.ts] = bar
+        merged[item.code] = [by_ts[key] for key in sorted(by_ts)]
+    _write_cache(merged)
+    return merged
+
+
+def bars_from_series(series) -> list[Bar]:
+    rows: list[Bar] = []
+    for bar in getattr(series, "bars", ()) or ():
+        stamp = bar.time
+        if stamp.tzinfo is not None:
+            stamp = stamp.replace(tzinfo=None)
+        rows.append(
+            Bar(
+                ts=stamp,
+                open=float(bar.open),
+                high=float(bar.high),
+                low=float(bar.low),
+                close=float(bar.close),
+                volume=float(bar.volume_lots or 0),
+            )
+        )
+    return rows
 
 
 def load_cache() -> dict[str, list[Bar]]:
