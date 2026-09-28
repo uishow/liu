@@ -1,4 +1,5 @@
 const hero = document.querySelector("#hero");
+const guide = document.querySelector("#guide");
 const sources = document.querySelector("#sources");
 const stamp = document.querySelector("#stamp");
 const quoteBody = document.querySelector("#quotes tbody");
@@ -33,6 +34,7 @@ function render(data) {
     return `<span class="pill ${item.ok ? "ok" : "bad"}">${label} ${item.ok ? "已连接" : "中断"}${item.latency_ms ? " · " + item.latency_ms + "ms" : ""}</span>`;
   }).join("");
   stamp.textContent = data.updated_at ? "行情自动更新 " + data.updated_at : "";
+  renderGuide(data.guidance);
 
   quoteBody.innerHTML = data.quotes.map((row) => {
     const change = row.axdata.change_pct;
@@ -81,6 +83,24 @@ function render(data) {
     <td>${reasonText[trade.reason] || trade.reason}</td>
     <td class="${trade.pnl >= 0 ? "up" : "down"}">${money(trade.pnl)}</td>
   </tr>`).join("");
+}
+
+function renderGuide(item) {
+  if (!item) {
+    guide.hidden = true;
+    return;
+  }
+  guide.hidden = false;
+  guide.className = "guide " + (item.action || "wait");
+  const prices = item.limit == null ? "" : `
+    <div class="prices">
+      <div><span>${item.action === "buy" ? "买入限价" : "持仓成本"}</span><strong>${num(item.limit, 3)}</strong></div>
+      <div><span>止盈价</span><strong>${num(item.take_profit, 3)}</strong></div>
+      <div><span>止损价</span><strong>${num(item.stop_loss, 3)}</strong></div>
+      <div><span>数量</span><strong>${item.qty ? item.qty.toLocaleString("zh-CN") : "—"}</strong></div>
+    </div>`;
+  const head = item.code ? `${item.title} · ${item.name || ""} ${item.code}` : item.title;
+  guide.innerHTML = `<h2>${head}</h2><p class="why">${item.why || ""}</p>${prices}<ol>${(item.steps || []).map((step) => `<li>${step}</li>`).join("")}</ol>`;
 }
 
 function bar(label, value, max) {

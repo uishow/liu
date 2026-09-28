@@ -3,6 +3,10 @@ from datetime import datetime, timedelta, timezone
 from app.hub import bars_refresh_due
 from app.strategy import (
     Bar,
+    Book,
+    PendingOrder,
+    Position,
+    build_guidance,
     detect_signal,
     premium_allocation,
     run_book,
@@ -120,6 +124,40 @@ def test_gap_open_blocks_the_session():
     day2.append(_bar(datetime(2026, 9, 28, 15, 0), 10.23))
     book = run_book({"518880": day1 + day2})
     assert book.trades == []
+
+
+def test_guidance_gives_a_limit_buy_and_blocks_rich_premium():
+    order = PendingOrder(
+        "518880",
+        8.560,
+        11600,
+        "breakout",
+        "2026-09-29",
+        "VWAP 上方窄幅震荡后放量突破上沿",
+        signal_ts=datetime(2026, 9, 29, 10, 35),
+    )
+    book = Book(pending=order, day="2026-09-29")
+    quote = {"last": 8.562, "bid": 8.561, "ask": 8.562, "premium_rate": 0.002, "name": "华安黄金ETF"}
+    guide = build_guidance(book, {"518880": quote}, datetime(2026, 9, 29, 10, 36))
+    assert guide["action"] == "buy"
+    assert guide["limit"] == 8.560
+    assert guide["take_profit"] == 8.590
+    assert guide["stop_loss"] == 8.545
+    assert guide["qty"] == 11600
+    assert "8.560" in guide["steps"][1]
+
+    quote["premium_rate"] = 0.02
+    blocked = build_guidance(book, {"518880": quote}, datetime(2026, 9, 29, 10, 36))
+    assert blocked["action"] == "wait"
+    assert "1.5%" in blocked["why"]
+
+
+def test_guidance_says_sell_when_the_target_is_hit():
+    pos = Position("511380", 7600, 13.000, 13.000 * 1.0035, 13.000 * 0.9982, "pullback", datetime(2026, 9, 29, 10, 40), 1.0)
+    book = Book(position=pos, day="2026-09-29", day_trades=1)
+    guide = build_guidance(book, {"511380": {"last": 13.05, "name": "可转债ETF"}}, datetime(2026, 9, 29, 10, 50))
+    assert guide["action"] == "sell"
+    assert "止盈" in guide["why"]
 
 
 def test_five_minute_bars_refresh_themselves_during_the_session():

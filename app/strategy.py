@@ -9,7 +9,7 @@ and names whose tick size swallows the target are left alone.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 TICK = 0.001
@@ -74,6 +74,7 @@ class PendingOrder:
     kind: str
     day: str
     reason: str
+    signal_ts: datetime | None = None
 
 
 @dataclass
@@ -335,6 +336,7 @@ def run_book(bars_by_code: dict[str, list[Bar]], premiums: dict[str, float] | No
                             kind=signal.kind,
                             day=day,
                             reason=signal.reason,
+                            signal_ts=ts,
                         )
 
         if ts.hour == 15 and ts.minute == 0:
@@ -347,6 +349,156 @@ def run_book(bars_by_code: dict[str, list[Bar]], premiums: dict[str, float] | No
                 if day_index[code].get(day):
                     prev_close[code] = price
     return book
+
+
+def build_guidance(book: Book, quotes: dict[str, dict], now: datetime) -> dict:
+    """Turn the current paper book into one buy, sell, hold, or wait instruction."""
+
+    clock = now.replace(tzinfo=None) if now.tzinfo else now
+    if book.position is not None:
+        return _position_guidance(book.position, quotes.get(book.position.code, {}), clock)
+    if book.pending is not None:
+        return _order_guidance(book, quotes.get(book.pending.code, {}), clock)
+    return _wait_guidance(book, clock)
+
+
+def _position_guidance(pos: Position, quote: dict, now: datetime) -> dict:
+    last = quote.get("last")
+    name = quote.get("name") or pos.code
+    take = round(pos.tp_px, 3)
+    stop = round(pos.sl_px, 3)
+    if now.hour * 60 + now.minute >= 14 * 60 + 45:
+        action, title, why = "sell", "现在卖出", "已经到 14:45，按规则清仓，不要留到收盘。"
+    elif last is not None and last >= pos.tp_px:
+        action, title, why = "sell", "现在卖出", f"最新价 {last:.3f} 已经到达止盈价 {take:.3f}。"
+    elif last is not None and last <= pos.sl_px:
+        action, title, why = "sell", "现在卖出", f"最新价 {last:.3f} 已经到达止损价 {stop:.3f}。"
+    else:
+        action, title, why = "hold", "持有，先别动", "还没碰到止盈或止损。碰到再卖，14:45 前必须卖掉。"
+    return {
+        "action": action,
+        "title": title,
+        "code": pos.code,
+        "name": name,
+        "kind": pos.kind,
+        "qty": pos.qty,
+        "limit": round(pos.fill, 3),
+        "take_profit": take,
+        "stop_loss": stop,
+        "valid_until": "14:45",
+        "why": why,
+        "steps": [
+            f"标的 {pos.code} {name}，持仓 {pos.qty} 份，买入价 {pos.fill:.3f}。",
+            f"止盈价 {take:.3f}，止损价 {stop:.3f}。",
+            "在券商里用对手价卖出。止盈可以挂限价，止损和 14:45 清仓用可成交的价格。",
+        ],
+    }
+
+
+def _order_guidance(book: Book, quote: dict, now: datetime) -> dict:
+    order = book.pending
+    assert order is not None
+    name = quote.get("name") or order.code
+    blocks = _buy_blocks(book, order, quote)
+    valid = order.signal_ts + timedelta(minutes=5) if order.signal_ts else None
+    if valid is not None and now > valid:
+        blocks.append(f"{valid.strftime('%H:%M')} 前没有成交，这张单作废，不要追价。")
+    limit = round(order.limit, 3)
+    take = round(order.limit * (1 + TP_PCT), 3)
+    stop = round(order.limit * (1 - SL_PCT), 3)
+    if blocks:
+        return {
+            "action": "wait",
+            "title": "先不要买",
+            "code": order.code,
+            "name": name,
+            "kind": order.kind,
+            "qty": order.qty,
+            "limit": limit,
+            "take_profit": take,
+            "stop_loss": stop,
+            "valid_until": valid.strftime("%H:%M") if valid else "",
+            "why": blocks[0],
+            "steps": blocks,
+        }
+    premium = quote.get("premium_rate")
+    alloc, size_note = premium_allocation(premium)
+    qty = int(book.cash * alloc / order.limit / LOT) * LOT
+    notional = round(qty * order.limit, 0)
+    return {
+        "action": "buy",
+        "title": "现在买入",
+        "code": order.code,
+        "name": name,
+        "kind": order.kind,
+        "qty": qty,
+        "limit": limit,
+        "take_profit": take,
+        "stop_loss": stop,
+        "valid_until": valid.strftime("%H:%M") if valid else "下一根 5 分钟线收盘",
+        "why": order.reason,
+        "steps": [
+            f"在券商挂限价买单：{order.code} {name}。",
+            f"价格 {limit:.3f}，数量 {qty} 份，金额约 {notional:.0f} 元。{size_note}。",
+            f"这张单只保留到 {valid.strftime('%H:%M') if valid else '下一根 5 分钟线收盘'}，没成交就撤销，不要追价。",
+            f"成交之后立刻挂止盈 {take:.3f}，止损放在 {stop:.3f}。",
+            "14:45 前卖出。今天最多做 3 笔，连续亏 2 笔就停。",
+        ],
+    }
+
+
+def _buy_blocks(book: Book, order: PendingOrder, quote: dict) -> list[str]:
+    blocks: list[str] = []
+    last = quote.get("last")
+    if last is not None and last < MIN_PRICE:
+        blocks.append(f"最新价 {last:.3f} 低于 2 元，一个最小价位就会吞掉利润，不买。")
+    if order.code in book.gap_blocked:
+        blocks.append("开盘跳空达到 1%，这只今天不买。")
+    premium = quote.get("premium_rate")
+    if premium is None:
+        blocks.append("还没有 IOPV，溢价不清楚，先不买。")
+    else:
+        alloc, note = premium_allocation(premium)
+        if alloc is None:
+            blocks.append(note)
+    spread = spread_block(quote.get("bid"), quote.get("ask"))
+    if spread:
+        blocks.append(spread)
+    if book.halted:
+        blocks.append("今天已经连续亏损 2 笔，停止交易。")
+    if book.day_trades >= MAX_DAY_TRADES:
+        blocks.append("今天已经成交 3 笔，不再开新仓。")
+    return blocks
+
+
+def _wait_guidance(book: Book, now: datetime) -> dict:
+    minute = now.hour * 60 + now.minute
+    if book.halted:
+        why = "今天已经连续亏损 2 笔，停止交易。"
+    elif book.day_trades >= MAX_DAY_TRADES:
+        why = "今天已经成交 3 笔，不再开新仓。"
+    elif minute < 10 * 60 + 10:
+        why = "还没到开仓时间。10:10 之后才看第一笔信号，9:45 之前不做。"
+    elif minute > 14 * 60 + 15 and minute < 14 * 60 + 45:
+        why = "14:15 之后不再找新的买点。有持仓就准备在 14:45 前卖掉。"
+    elif not in_signal_window(minute):
+        why = "现在是午休或非交易时段。下午的信号从 13:40 开始。"
+    else:
+        why = f"这一根没有新的买点。今天已处理 {book.day_trades} 笔，继续看盘。"
+    return {
+        "action": "wait",
+        "title": "现在不交易",
+        "code": "",
+        "name": "",
+        "kind": "",
+        "qty": 0,
+        "limit": None,
+        "take_profit": None,
+        "stop_loss": None,
+        "valid_until": "",
+        "why": why,
+        "steps": [why],
+    }
 
 
 def summarize(book: Book, start_equity: float = 1_000_000.0) -> dict:

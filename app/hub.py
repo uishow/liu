@@ -15,6 +15,7 @@ from .strategy import (
     MIN_PRICE,
     detect_signal,
     premium_allocation,
+    build_guidance,
     run_book,
     spread_block,
     summarize,
@@ -219,6 +220,19 @@ class Hub:
             if self.book is not None:
                 trades = [trade.__dict__ for trade in self.book.trades]
             equity = list(self.book.equity_points) if self.book is not None else []
+            guidance = None
+            if self.book is not None:
+                quote_map = {
+                    row["code"]: {
+                        "last": row.get("last"),
+                        "bid": (row.get("eltdx") or {}).get("bid"),
+                        "ask": (row.get("eltdx") or {}).get("ask"),
+                        "premium_rate": None if row.get("premium_pct") is None else row["premium_pct"] / 100,
+                        "name": row.get("name"),
+                    }
+                    for row in self.quotes
+                }
+                guidance = build_guidance(self.book, quote_map, datetime.now(CN))
             return {
                 "ready": self.ready,
                 "loading": self.loading,
@@ -231,6 +245,7 @@ class Hub:
                 "equity": equity,
                 "session_open": _session_open(),
                 "auto": True,
+                "guidance": guidance,
             }
 
 
