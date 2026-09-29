@@ -10,26 +10,39 @@
   <div class="page">
     <header class="top">
       <div>
-        <p class="eyebrow">场内 T+0 · 纸面成交 · 实盘行情</p>
-        <h1>闸门修复</h1>
+        <p class="eyebrow">场内 T+0 · 只跟下面这一栏 · 不报真实单</p>
       </div>
       <div class="sources" id="sources"></div>
       <button id="refresh" type="button">立即刷新</button>
     </header>
 
-    <section class="hero" id="hero">
-      <p class="loading">正在连接 eltdx 与 AxData，并回放 5 分钟样本…</p>
+    <section class="desk">
+      <h1>今日操作建议</h1>
+      <p class="lede">只看这一栏。写成买入，就到券商按限价和数量下单；写成卖出，就把这只卖掉；写成持有或现在不交易，就什么都不做。</p>
+      <section id="guide" class="guide">
+        <p class="loading">正在连接 eltdx 与 AxData…</p>
+      </section>
+      <h2>今天的建议记录</h2>
+      <p class="note">同一句话不重复记。动作、标的或价格变了，才新加一行。更早的日期在「存档」。</p>
+      <ol id="today-log" class="log"></ol>
+      <div id="today-ops"></div>
     </section>
 
-    <section id="guide" class="guide"></section>
-
     <nav class="tabs">
-      <button type="button" class="active" data-tab="monitor">监控</button>
+      <button type="button" data-tab="archive">存档</button>
+      <button type="button" data-tab="monitor">行情</button>
       <button type="button" data-tab="backtest">回测</button>
       <button type="button" data-tab="plan">方案</button>
     </nav>
 
-    <section id="monitor" class="panel active">
+    <section id="archive" class="panel">
+      <div class="archive">
+        <div id="archive-days" class="days"></div>
+        <div id="archive-detail" class="archive-detail"></div>
+      </div>
+    </section>
+
+    <section id="monitor" class="panel">
       <div class="table-wrap">
         <table id="quotes">
           <thead>
@@ -51,6 +64,7 @@
     </section>
 
     <section id="backtest" class="panel">
+      <div class="hero" id="hero"></div>
       <div class="chart-card">
         <div class="chart-head">
           <h2>纸面权益</h2>
@@ -84,7 +98,7 @@
 
     <section id="plan" class="panel prose">
       <h2>明天开盘怎么做</h2>
-      <p>9:15 前启动本页，并排打开券商软件。盘中只看最上面的大卡片，表格只用来核对。</p>
+      <p>9:15 前启动本页，并排打开券商软件。盘中只看「今日操作建议」，行情表不用来挑股票。</p>
       <ol>
         <li>卡片写「现在买入」：券商里选限价买入。价格填买入限价，数量填卡片数量。资金不是 100 万时，数量先乘「你的资金 ÷ 100 万」，再向下取整到 100 份。有效时间一到还没成交就撤单，不追价。成交后按止盈价挂卖单，并把止损价记下来。</li>
         <li>卡片写「持有，先别动」：不加仓，不改止盈，不取消止损。等它变成「现在卖出」。</li>

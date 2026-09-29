@@ -1,7 +1,12 @@
 const hero = document.querySelector("#hero");
 const guide = document.querySelector("#guide");
+const todayLog = document.querySelector("#today-log");
+const todayOps = document.querySelector("#today-ops");
+const archiveDays = document.querySelector("#archive-days");
+const archiveDetail = document.querySelector("#archive-detail");
 const sources = document.querySelector("#sources");
 const stamp = document.querySelector("#stamp");
+let archiveDay = "";
 const quoteBody = document.querySelector("#quotes tbody");
 const tradeBody = document.querySelector("#trades tbody");
 const months = document.querySelector("#months");
@@ -15,10 +20,16 @@ const money = (value) => {
 };
 const px = (value) => (value == null ? "—" : Number(value).toFixed(3));
 const num = (value, digits = 2) => (value == null ? "—" : Number(value).toFixed(digits));
+const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+const kindText = { breakout: "突破", pullback: "回调" };
+const reasonText = { take: "止盈", stop: "止损", flat: "到点平仓" };
 
 function render(data) {
   if (!data.ready) {
-    hero.innerHTML = `<p class="loading">${data.error ? "行情没有连上：" + data.error : "正在连接 eltdx 与 AxData，并回放 5 分钟样本…"}</p>`;
+    guide.hidden = false;
+    guide.className = "guide";
+    guide.innerHTML = `<p class="loading">${data.error ? "行情没有连上：" + esc(data.error) : "正在连接 eltdx 与 AxData，并回放 5 分钟样本…"}</p>`;
+    renderJournal(data.journal);
     return;
   }
   const summary = data.summary;
@@ -37,6 +48,7 @@ function render(data) {
   }).join("");
   stamp.textContent = data.updated_at ? "行情自动更新 " + data.updated_at : "";
   renderGuide(data.guidance);
+  renderJournal(data.journal);
 
   quoteBody.innerHTML = data.quotes.map((row) => {
     const change = row.axdata.change_pct;
@@ -72,8 +84,6 @@ function render(data) {
   const maxCode = Math.max(...codeEntries.map(([, value]) => Math.abs(value)), 1);
   codes.innerHTML = `<h2>分标的</h2>` + codeEntries.map(([code, value]) => bar(code, value, maxCode)).join("");
 
-  const reasonText = { take: "止盈", stop: "止损", flat: "到点平仓" };
-  const kindText = { breakout: "突破", pullback: "回调" };
   tradeBody.innerHTML = data.trades.slice().reverse().map((trade) => `<tr>
     <td>${trade.code}</td>
     <td>${kindText[trade.kind] || trade.kind}</td>
@@ -102,7 +112,75 @@ function renderGuide(item) {
       <div><span>数量</span><strong>${item.qty ? item.qty.toLocaleString("zh-CN") : "—"}</strong></div>
     </div>`;
   const head = item.code ? `${item.title} · ${item.name || ""} ${item.code}` : item.title;
-  guide.innerHTML = `<h2>${head}</h2><p class="why">${item.why || ""}</p>${prices}<ol>${(item.steps || []).map((step) => `<li>${step}</li>`).join("")}</ol>`;
+  guide.innerHTML = `<h2>${esc(head)}</h2><p class="why">${esc(item.why || "")}</p>${prices}<ol>${(item.steps || []).map((step) => `<li>${esc(step)}</li>`).join("")}</ol>`;
+}
+
+function renderJournal(journal) {
+  if (!journal) {
+    todayLog.innerHTML = `<li><span>开盘后，每一条不同的建议都会出现在这里。</span></li>`;
+    todayOps.innerHTML = "";
+    return;
+  }
+  const today = journal.today;
+  const suggestions = (journal.suggestions || []).filter((item) => item.day === today);
+  todayLog.innerHTML = suggestions.length
+    ? suggestions.map(suggestionItem).join("")
+    : `<li><span>开盘后，每一条不同的建议都会出现在这里。</span></li>`;
+  const operations = (journal.operations || []).filter((item) => item.day === today);
+  todayOps.innerHTML = operations.length
+    ? `<div class="ops"><h2>今天的纸面成交</h2><div class="table-wrap"><table><thead><tr><th>标的</th><th>开仓</th><th>平仓</th><th>买价</th><th>卖价</th><th>数量</th><th>原因</th><th>盈亏</th></tr></thead><tbody>${operations.map(operationRow).join("")}</tbody></table></div><p class="note">这是程序按规则算出的纸面成交，用来对照你在券商里实际下的单。</p></div>`
+    : `<p class="note">今天还没有纸面成交。</p>`;
+  const days = archiveDaysOf(journal);
+  if (!archiveDay || !days.includes(archiveDay)) archiveDay = days[0] || "";
+  archiveDays.innerHTML = days.map((day) => `<button type="button" data-day="${esc(day)}" class="${day === archiveDay ? "active" : ""}">${esc(day)}</button>`).join("");
+  archiveDays.querySelectorAll("button").forEach((button) => {
+    button.addEventListener("click", () => {
+      archiveDay = button.dataset.day;
+      renderJournal(window.__desk && window.__desk.journal);
+    });
+  });
+  renderArchiveDetail(journal, archiveDay);
+}
+
+function suggestionItem(item) {
+  return `<li><time>${esc((item.ts || "").slice(11, 16))}</time><div><strong class="${esc(item.action || "")}">${esc(item.title || "")}</strong><span class="sub">${esc(item.instruction || item.why || "")}</span></div></li>`;
+}
+
+function operationRow(item) {
+  const pnl = Number(item.pnl || 0);
+  return `<tr>
+    <td>${esc(item.code)}<span class="sub">${esc(kindText[item.kind] || item.kind || "")}</span></td>
+    <td>${esc(item.entry_ts)}</td>
+    <td>${esc(item.exit_ts)}</td>
+    <td>${num(item.fill, 3)}</td>
+    <td>${num(item.exit, 3)}</td>
+    <td>${item.qty ? Number(item.qty).toLocaleString("zh-CN") : "—"}</td>
+    <td>${esc(reasonText[item.reason] || item.reason || "")}</td>
+    <td class="${pnl >= 0 ? "up" : "down"}">${money(pnl)}</td>
+  </tr>`;
+}
+
+function archiveDaysOf(journal) {
+  const days = new Set();
+  (journal.suggestions || []).forEach((item) => item.day && days.add(item.day));
+  (journal.operations || []).forEach((item) => item.day && days.add(item.day));
+  return Array.from(days).sort().reverse();
+}
+
+function renderArchiveDetail(journal, day) {
+  if (!day) {
+    archiveDetail.innerHTML = `<p class="note">还没有存档。</p>`;
+    return;
+  }
+  const suggestions = (journal.suggestions || []).filter((item) => item.day === day);
+  const operations = (journal.operations || []).filter((item) => item.day === day);
+  const suggestionHtml = suggestions.length
+    ? `<ol class="log">${suggestions.map(suggestionItem).join("")}</ol>`
+    : `<p class="note">这一天没有留下实时建议。建议从本机开始记录的那一天起才有。</p>`;
+  const operationHtml = operations.length
+    ? `<div class="table-wrap"><table><thead><tr><th>标的</th><th>开仓</th><th>平仓</th><th>买价</th><th>卖价</th><th>数量</th><th>原因</th><th>盈亏</th></tr></thead><tbody>${operations.map(operationRow).join("")}</tbody></table></div>`
+    : `<p class="note">这一天没有纸面成交。</p>`;
+  archiveDetail.innerHTML = `<h2>${esc(day)} 的建议</h2>${suggestionHtml}<h2>${esc(day)} 的纸面成交</h2>${operationHtml}`;
 }
 
 function bar(label, value, max) {

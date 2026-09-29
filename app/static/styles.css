@@ -63,6 +63,22 @@ button:hover { border-color: var(--gold); }
 .stat em { display: block; margin-top: 6px; color: var(--muted); font-style: normal; font-size: 12px; }
 .up { color: var(--up); }
 .down { color: var(--down); }
+.desk { margin: 18px 0 22px; }
+.lede, .note { color: var(--muted); line-height: 1.7; margin: 8px 0 14px; }
+.log { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); }
+.log li { display: grid; grid-template-columns: 92px 1fr; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.log li:last-child { border-bottom: 0; }
+.log time { color: var(--muted); font-variant-numeric: tabular-nums; }
+.log .buy { color: var(--gold); }
+.log .sell { color: var(--down); }
+.log .hold { color: var(--ok); }
+.ops { margin-top: 14px; }
+.archive { display: grid; grid-template-columns: 180px 1fr; gap: 12px; }
+.days { display: flex; flex-direction: column; gap: 6px; }
+.days button { text-align: left; border-radius: 12px; }
+.days button.active { border-color: var(--gold); color: var(--gold); }
+.archive-detail h2 { margin-top: 16px; }
+.archive-detail h2:first-child { margin-top: 0; }
 .guide {
   margin: 0 0 16px;
   padding: 18px;
@@ -122,6 +138,7 @@ footer { display: flex; justify-content: space-between; color: var(--muted); fon
 .loading { color: var(--muted); grid-column: 1 / -1; }
 @media (max-width: 860px) {
   .hero, .split, .top, .prices { grid-template-columns: 1fr 1fr; display: grid; }
+  .archive { grid-template-columns: 1fr; }
   .top { align-items: start; }
   h1 { font-size: 32px; }
   .sources { justify-content: flex-start; }

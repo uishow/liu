@@ -14,6 +14,7 @@ os.environ.setdefault("AXDATA_TDX_TIMEOUT", "20")
 import axdata as ax
 
 from . import feeds
+from .journal import Journal
 from .strategy import (
     MIN_PRICE,
     day_review,
@@ -56,6 +57,7 @@ class Hub:
         self._feed_lock = threading.Lock()
         self._stop = threading.Event()
         self._auto_started = False
+        self.journal = Journal()
 
     def bootstrap(self) -> None:
         with self.lock:
@@ -288,6 +290,9 @@ class Hub:
                     notes = _review_lines(review)
                     if notes:
                         guidance["steps"] = notes + list(guidance.get("steps") or [])
+            else:
+                now = datetime.now(CN)
+            journal = self.journal.record(guidance, trades, now)
             return {
                 "ready": self.ready,
                 "loading": self.loading,
@@ -301,6 +306,7 @@ class Hub:
                 "session_open": _session_open(),
                 "auto": True,
                 "guidance": guidance,
+                "journal": journal,
             }
 
 
