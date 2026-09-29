@@ -351,6 +351,40 @@ def run_book(bars_by_code: dict[str, list[Bar]], premiums: dict[str, float] | No
     return book
 
 
+def day_review(bars_by_code: dict[str, list[Bar]], day: str) -> dict:
+    """Say what today's session has already checked, including a quiet morning."""
+
+    signals = []
+    quiet = []
+    cheap = []
+    for code, series in bars_by_code.items():
+        day_bars = [bar for bar in series if bar.day == day]
+        if not day_bars:
+            continue
+        last = day_bars[-1].close
+        if last < MIN_PRICE:
+            cheap.append(code)
+            continue
+        found = None
+        for idx in range(8, len(day_bars)):
+            signal = detect_signal(code, day_bars[: idx + 1])
+            if signal is not None:
+                found = {
+                    "code": code,
+                    "time": day_bars[idx].ts.strftime("%H:%M"),
+                    "kind": signal.kind,
+                    "limit": round(signal.limit, 3),
+                }
+        high = max(bar.high for bar in day_bars)
+        low = min(bar.low for bar in day_bars)
+        span = (high - low) / last * 100 if last else 0.0
+        if found is None:
+            quiet.append({"code": code, "range_pct": round(span, 2)})
+        else:
+            signals.append(found)
+    return {"signals": signals, "quiet": quiet, "cheap": cheap}
+
+
 def build_guidance(book: Book, quotes: dict[str, dict], now: datetime) -> dict:
     """Turn the current paper book into one buy, sell, hold, or wait instruction."""
 

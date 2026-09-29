@@ -8,6 +8,7 @@ from app.strategy import (
     PendingOrder,
     Position,
     build_guidance,
+    day_review,
     detect_signal,
     premium_allocation,
     run_book,
@@ -187,6 +188,16 @@ def test_preopen_snapshot_does_not_print_a_total_loss():
     )
     assert row["last"] == 8.568
     assert row["change_pct"] is None
+
+
+def test_a_quiet_morning_is_reported_instead_of_a_fake_trade():
+    start = datetime(2026, 9, 29, 9, 35)
+    quiet = [_bar(start + timedelta(minutes=5 * i), 8.50) for i in range(20)]
+    cheap = [_bar(start + timedelta(minutes=5 * i), 0.54) for i in range(20)]
+    review = day_review({"518880": quiet, "513180": cheap}, "2026-09-29")
+    assert review["signals"] == []
+    assert review["quiet"][0]["code"] == "518880"
+    assert review["cheap"] == ["513180"]
 
 
 def test_five_minute_bars_refresh_themselves_during_the_session():

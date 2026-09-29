@@ -16,6 +16,7 @@ import axdata as ax
 from . import feeds
 from .strategy import (
     MIN_PRICE,
+    day_review,
     detect_signal,
     premium_allocation,
     build_guidance,
@@ -280,7 +281,13 @@ class Hub:
                     }
                     for row in self.quotes
                 }
-                guidance = build_guidance(self.book, quote_map, datetime.now(CN))
+                now = datetime.now(CN)
+                guidance = build_guidance(self.book, quote_map, now)
+                if guidance and guidance.get("action") == "wait":
+                    review = day_review(self.bars, now.strftime("%Y-%m-%d"))
+                    notes = _review_lines(review)
+                    if notes:
+                        guidance["steps"] = notes + list(guidance.get("steps") or [])
             return {
                 "ready": self.ready,
                 "loading": self.loading,
@@ -295,6 +302,30 @@ class Hub:
                 "auto": True,
                 "guidance": guidance,
             }
+
+
+def _review_lines(review: dict) -> list[str]:
+    lines = []
+    signals = review.get("signals") or []
+    quiet = review.get("quiet") or []
+    cheap = review.get("cheap") or []
+    if signals:
+        text = "；".join(
+            f"{item['time']} {BY_CODE[item['code']].name if item['code'] in BY_CODE else item['code']} {item['code']} "
+            f"{'回调' if item['kind'] == 'pullback' else '突破'} 限价 {item['limit']:.3f}"
+            for item in signals
+        )
+        lines.append(f"今天已经出现过买点：{text}。只在信号后的 5 分钟内挂限价，过时不追。")
+    elif quiet:
+        text = "，".join(
+            f"{BY_CODE[item['code']].name if item['code'] in BY_CODE else item['code']} 振幅 {item['range_pct']:.2f}%"
+            for item in quiet
+        )
+        lines.append(f"价格不低于 2 元的标的今天还没有买点：{text}。")
+    if cheap:
+        names = "、".join(BY_CODE[code].name if code in BY_CODE else code for code in cheap)
+        lines.append(f"低于 2 元不做：{names}。")
+    return lines
 
 
 def in_bar_window(now: datetime) -> bool:
