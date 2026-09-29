@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import os
 import threading
 import time
 from datetime import datetime, timedelta, timezone
 
 from eltdx import TdxClient
+
+os.environ.setdefault("AXDATA_TDX_TIMEOUT", "20")
 
 import axdata as ax
 
@@ -25,6 +28,7 @@ from .universe import BY_CODE, UNIVERSE
 CN = timezone(timedelta(hours=8))
 QUOTE_SECONDS = 15
 BAR_REFRESH_SECONDS = 45
+ELTDX_TIMEOUT = 20.0
 
 
 class Hub:
@@ -47,6 +51,7 @@ class Hub:
         self.last_bar_fetch = 0.0
         self._eltdx = None
         self._ax = None
+        self._ax_session = None
         self._feed_lock = threading.Lock()
         self._stop = threading.Event()
         self._auto_started = False
@@ -56,8 +61,9 @@ class Hub:
             self.loading = True
             self.error = None
         try:
-            self._eltdx = TdxClient(timeout=12, heartbeat_interval=30)
+            self._eltdx = TdxClient(timeout=ELTDX_TIMEOUT, heartbeat_interval=30)
             self._ax = ax.AxDataClient()
+            self._open_ax_session()
             try:
                 self.bars = feeds.load_history(self._eltdx)
                 history_source = "eltdx"
@@ -126,6 +132,34 @@ class Hub:
             self.last_bar_fetch = time.time()
             self.auto_error = None
 
+    def _open_ax_session(self) -> None:
+        if self._ax is None:
+            self._ax = ax.AxDataClient()
+        if self._ax_session is not None:
+            return
+        session = self._ax.session("tdx")
+        session.open()
+        self._ax_session = session
+
+    def _reset_eltdx(self) -> None:
+        client = self._eltdx
+        self._eltdx = TdxClient(timeout=ELTDX_TIMEOUT, heartbeat_interval=30)
+        if client is not None:
+            try:
+                client.close()
+            except Exception:
+                pass
+
+    def _reset_ax_session(self) -> None:
+        session = self._ax_session
+        self._ax_session = None
+        if session is not None:
+            try:
+                session.close()
+            except Exception:
+                pass
+        self._open_ax_session()
+
     def refresh_quotes(self) -> None:
         eltdx_rows: dict = {}
         ax_rows: dict = {}
@@ -137,18 +171,32 @@ class Hub:
         try:
             eltdx_rows = feeds.eltdx_quotes(self._eltdx)
         except Exception as exc:
-            eltdx_error = str(exc)
+            eltdx_error = feeds.brief_feed_error(exc)
+            try:
+                self._reset_eltdx()
+                eltdx_rows = feeds.eltdx_quotes(self._eltdx)
+                eltdx_error = None
+            except Exception as retry_exc:
+                eltdx_error = feeds.brief_feed_error(retry_exc)
         eltdx_ms = (time.perf_counter() - started) * 1000
         started = time.perf_counter()
         try:
-            ax_rows = feeds.axdata_snapshots(self._ax)
+            if self._ax_session is None:
+                self._open_ax_session()
+            ax_rows = feeds.axdata_snapshots(self._ax_session)
         except Exception as exc:
-            ax_error = str(exc)
+            ax_error = feeds.brief_feed_error(exc)
+            try:
+                self._reset_ax_session()
+                ax_rows = feeds.axdata_snapshots(self._ax_session)
+                ax_error = None
+            except Exception as retry_exc:
+                ax_error = feeds.brief_feed_error(retry_exc)
         ax_ms = (time.perf_counter() - started) * 1000
         try:
             premium_rows = feeds.tencent_premiums()
         except Exception as exc:
-            premium_error = str(exc)
+            premium_error = feeds.brief_feed_error(exc)
 
         quotes = []
         for item in UNIVERSE:

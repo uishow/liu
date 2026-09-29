@@ -129,16 +129,17 @@ def eltdx_quotes(client) -> dict[str, dict]:
         ask = snap.sell_levels[0].price if snap.sell_levels else None
         bid_vol = snap.buy_levels[0].volume if snap.buy_levels else None
         ask_vol = snap.sell_levels[0].volume if snap.sell_levels else None
+        pre_close = _num(snap.pre_close_price)
         parsed[code] = {
-            "last": snap.last_price,
-            "open": snap.open_price,
-            "high": snap.high_price,
-            "low": snap.low_price,
-            "pre_close": snap.pre_close_price,
+            "last": live_price(snap.last_price, pre_close),
+            "open": _positive(snap.open_price),
+            "high": _positive(snap.high_price),
+            "low": _positive(snap.low_price),
+            "pre_close": pre_close,
             "amount": snap.amount,
             "volume": snap.total_hand,
-            "bid": bid,
-            "ask": ask,
+            "bid": _positive(bid),
+            "ask": _positive(ask),
             "bid_volume": bid_vol,
             "ask_volume": ask_vol,
         }
@@ -165,18 +166,24 @@ def axdata_snapshots(ax_client) -> dict[str, dict]:
     parsed: dict[str, dict] = {}
     for row in frame.to_dict(orient="records"):
         code = str(row["instrument_id"]).split(".")[0]
-        parsed[code] = {
-            "last": _num(row.get("last_price")),
-            "pre_close": _num(row.get("pre_close")),
-            "open": _num(row.get("open")),
-            "high": _num(row.get("high")),
-            "low": _num(row.get("low")),
-            "change_pct": _num(row.get("change_pct")),
-            "volume": _num(row.get("volume")),
-            "amount": _num(row.get("amount")),
-            "amplitude_pct": _num(row.get("amplitude_pct")),
-        }
+        parsed[code] = ax_quote_fields(row)
     return parsed
+
+
+def ax_quote_fields(row: dict) -> dict:
+    pre_close = _num(row.get("pre_close"))
+    opened = _positive(row.get("open"))
+    return {
+        "last": live_price(row.get("last_price"), pre_close),
+        "pre_close": pre_close,
+        "open": opened,
+        "high": _positive(row.get("high")),
+        "low": _positive(row.get("low")),
+        "change_pct": None if opened is None else _num(row.get("change_pct")),
+        "volume": _num(row.get("volume")),
+        "amount": _num(row.get("amount")),
+        "amplitude_pct": _num(row.get("amplitude_pct")),
+    }
 
 
 def tencent_premiums() -> dict[str, dict]:
@@ -206,6 +213,33 @@ def tencent_premiums() -> dict[str, dict]:
             "premium_rate": None if premium_pct is None else premium_pct / 100,
         }
     return parsed
+
+
+def live_price(last, pre_close) -> float | None:
+    """Use the last trade, or yesterday's close before the first print.
+
+    Tongdaxin reports last=0 before the opening auction. A zero is not a price.
+    """
+
+    traded = _positive(last)
+    if traded is not None:
+        return traded
+    return _positive(pre_close)
+
+
+def brief_feed_error(exc: BaseException) -> str:
+    text = str(exc).strip().splitlines()[0] if str(exc).strip() else exc.__class__.__name__
+    lowered = text.lower()
+    if "timeout" in lowered or "timed out" in lowered:
+        return "通达信连接超时"
+    return text[:80]
+
+
+def _positive(value):
+    number = _num(value)
+    if number is None or number <= 0:
+        return None
+    return number
 
 
 def _num(value):

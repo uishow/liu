@@ -31,7 +31,9 @@ function render(data) {
   `;
   sources.innerHTML = Object.entries(data.sources).map(([name, item]) => {
     const label = name === "premium" ? "IOPV" : name;
-    return `<span class="pill ${item.ok ? "ok" : "bad"}">${label} ${item.ok ? "已连接" : "中断"}${item.latency_ms ? " · " + item.latency_ms + "ms" : ""}</span>`;
+    const latency = item.latency_ms ? " · " + item.latency_ms + "ms" : "";
+    const reason = item.ok ? "" : " · " + (item.detail || "没有返回行情");
+    return `<span class="pill ${item.ok ? "ok" : "bad"}">${label} ${item.ok ? "已连接" : "中断"}${reason}${latency}</span>`;
   }).join("");
   stamp.textContent = data.updated_at ? "行情自动更新 " + data.updated_at : "";
   renderGuide(data.guidance);

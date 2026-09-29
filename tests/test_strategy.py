@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
+from app.feeds import ax_quote_fields, brief_feed_error, live_price
 from app.hub import bars_refresh_due
 from app.strategy import (
     Bar,
@@ -158,6 +159,34 @@ def test_guidance_says_sell_when_the_target_is_hit():
     guide = build_guidance(book, {"511380": {"last": 13.05, "name": "可转债ETF"}}, datetime(2026, 9, 29, 10, 50))
     assert guide["action"] == "sell"
     assert "止盈" in guide["why"]
+
+
+def test_zero_last_before_the_open_uses_the_previous_close():
+    assert live_price(0, 8.568) == 8.568
+    assert live_price(8.57, 8.568) == 8.57
+    assert live_price(None, None) is None
+
+
+def test_feed_timeout_is_named_in_chinese():
+    assert brief_feed_error(TimeoutError("timed out")) == "通达信连接超时"
+
+
+def test_preopen_snapshot_does_not_print_a_total_loss():
+    row = ax_quote_fields(
+        {
+            "last_price": 0,
+            "pre_close": 8.568,
+            "open": 0,
+            "high": 0,
+            "low": 0,
+            "change_pct": -100,
+            "volume": 0,
+            "amount": 0,
+            "amplitude_pct": 0,
+        }
+    )
+    assert row["last"] == 8.568
+    assert row["change_pct"] is None
 
 
 def test_five_minute_bars_refresh_themselves_during_the_session():
