@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>鹈鹕骑自行车</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #67b4d6;
+      overflow: hidden;
+    }
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <p class="sr-only">一只白色鹈鹕在海边栈桥上骑自行车。蹼脚踩着踏板，车轮转动，海浪、云朵和海鸥一起缓缓移动。</p>
+  <svg id="scene" viewBox="0 0 1200 700" role="img" aria-label="一只白鹈鹕在海边栈桥上骑自行车">
+    <defs>
+      <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#67B4D6"/>
+        <stop offset="0.42" stop-color="#A9D7EE"/>
+        <stop offset="0.72" stop-color="#F3E3C4"/>
+        <stop offset="1" stop-color="#F8D7A8"/>
+      </linearGradient>
+      <radialGradient id="sunGrad" cx="0.4" cy="0.38" r="0.7">
+        <stop offset="0" stop-color="#FFF6D2"/>
+        <stop offset="0.6" stop-color="#FFD56A"/>
+        <stop offset="1" stop-color="#F5B942"/>
+      </radialGradient>
+      <linearGradient id="seaGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#8FCFDC"/>
+        <stop offset="0.35" stop-color="#3E9BB6"/>
+        <stop offset="1" stop-color="#1A6C88"/>
+      </linearGradient>
+      <linearGradient id="waterFront" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#1A6C88" stop-opacity="0"/>
+        <stop offset="0.45" stop-color="#176480" stop-opacity="0.55"/>
+        <stop offset="1" stop-color="#0E4E66" stop-opacity="0.92"/>
+      </linearGradient>
+      <linearGradient id="bodyGrad" gradientUnits="userSpaceOnUse" x1="180" y1="-210" x2="20" y2="-40">
+        <stop offset="0" stop-color="#FFFFFF"/>
+        <stop offset="0.55" stop-color="#FFF8F1"/>
+        <stop offset="1" stop-color="#E6D9CB"/>
+      </linearGradient>
+      <linearGradient id="beakGrad" gradientUnits="userSpaceOnUse" x1="20" y1="0" x2="160" y2="30">
+        <stop offset="0" stop-color="#FFC15A"/>
+        <stop offset="0.55" stop-color="#F39B2E"/>
+        <stop offset="1" stop-color="#E07A1C"/>
+      </linearGradient>
+      <radialGradient id="pouchGrad" cx="0.4" cy="0.3" r="0.8">
+        <stop offset="0" stop-color="#FFE7A0"/>
+        <stop offset="0.7" stop-color="#F0B84A"/>
+        <stop offset="1" stop-color="#E0942E"/>
+      </radialGradient>
+      <linearGradient id="deckLip" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#F6DDB4"/>
+        <stop offset="1" stop-color="#E2B57A"/>
+      </linearGradient>
+      <linearGradient id="fascia" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#D7A56C"/>
+        <stop offset="1" stop-color="#C0864E"/>
+      </linearGradient>
+      <filter id="soft" x="-30%" y="-30%" width="160%" height="170%">
+        <feDropShadow dx="-3" dy="4" stdDeviation="2.2" flood-color="#1A4558" flood-opacity="0.2"/>
+      </filter>
+      <g id="foot-proto">
+        <path stroke="#C4682C" stroke-width="1.3" stroke-linejoin="round" d="M -8 -2
+                 C 2 -5, 14 -2, 22 1
+                 L 32 3
+                 C 36 7, 26 10, 18 8
+                 L 30 13
+                 C 34 17, 20 17, 14 12
+                 L 24 19
+                 C 26 23, 8 21, 4 15
+                 L -6 11
+                 C -16 7, -16 1, -8 -2 Z"/>
+        <ellipse cx="-2" cy="-9" rx="6.2" ry="5" stroke="#C4682C" stroke-width="1.2"/>
+      </g>
+    </defs>
+
+    <rect width="1200" height="700" fill="url(#skyGrad)"/>
+
+    <g id="sun">
+      <circle cx="1040" cy="116" r="86" fill="#FFE7A8" opacity="0.38"/>
+      <g id="sun-rays"></g>
+      <circle cx="1040" cy="116" r="44" fill="url(#sunGrad)"/>
+    </g>
+
+    <g id="clouds"></g>
+    <g id="hills"></g>
+
+    <rect x="0" y="448" width="1200" height="252" fill="url(#seaGrad)"/>
+    <g id="waves"></g>
+    <g id="boat"></g>
+    <g id="sparkles"></g>
+
+    <g id="posts"></g>
+    <rect x="0" y="612" width="1200" height="88" fill="url(#waterFront)"/>
+    <g id="foam"></g>
+
+    <rect x="0" y="548" width="1200" height="14" fill="url(#deckLip)"/>
+    <rect x="0" y="562" width="1200" height="42" fill="url(#fascia)"/>
+    <g id="planks"></g>
+    <rect x="0" y="548" width="1200" height="2.5" fill="#F8E6C8" opacity="0.85"/>
+
+    <ellipse id="shadow" cx="0" cy="0" rx="168" ry="9" fill="#123844" opacity="0.18"/>
+
+    <g id="rider">
+      <g id="wheel-rear"></g>
+      <path id="chain" fill="none" stroke="#5C6770" stroke-width="3.5" stroke-linecap="round"/>
+      <g id="cog">
+        <circle r="11" fill="#C5CED6" stroke="#7E8B99" stroke-width="4" stroke-dasharray="2.4 1.9"/>
+        <circle r="4" fill="#8A97A4"/>
+      </g>
+      <g id="chainring"></g>
+      <line id="crank-far" stroke="#3E4650" stroke-width="6" stroke-linecap="round"/>
+      <g id="pedal-far">
+        <rect x="-11" y="-3.5" width="22" height="7" rx="2" fill="#2C3338"/>
+        <rect x="-7" y="-1.4" width="14" height="2.8" rx="1" fill="#C9A24A"/>
+      </g>
+      <g id="leg-far" fill="none" stroke="#F0A56C" stroke-linecap="round">
+        <line id="thigh-far" stroke-width="10"/>
+        <line id="shin-far" stroke-width="7.5"/>
+        <circle id="knee-far" r="5" fill="#F0A56C" stroke="none"/>
+      </g>
+      <use id="foot-far" href="#foot-proto" fill="#F0A56C"/>
+
+      <g id="frame" fill="none" stroke="#E25B3C" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M 0 0 L 122 18"/>
+        <path d="M 0 0 L 46 -96"/>
+        <path d="M 46 -96 L 122 18"/>
+        <path d="M 206 -104 L 122 18"/>
+        <path d="M 46 -96 L 206 -104"/>
+      </g>
+      <path id="saddle" d="M -28 -86 C -4 -108, 52 -112, 92 -90 C 74 -78, 28 -76, -12 -82 C -30 -84, -34 -86, -28 -86 Z" fill="#7A4632"/>
+      <path d="M -8 -96 C 22 -104, 58 -102, 80 -90" fill="none" stroke="#C48A6A" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
+
+      <g id="pelican" filter="url(#soft)">
+        <g id="wing-far"></g>
+        <g id="tail">
+          <path d="M 2 -128 C -24 -122, -52 -108, -48 -94 C -28 -104, -8 -112, 4 -116 Z" fill="#EFE6DA"/>
+          <path d="M 6 -138 C -20 -140, -50 -126, -46 -110 C -26 -120, -6 -124, 6 -124 Z" fill="#FFF9F3"/>
+          <path d="M 4 -148 C -18 -162, -42 -152, -38 -134 C -20 -142, -4 -140, 4 -134 Z" fill="#F7F1E8"/>
+        </g>
+        <ellipse cx="58" cy="-128" rx="68" ry="40" fill="url(#bodyGrad)"/>
+        <ellipse cx="104" cy="-100" rx="44" ry="34" fill="url(#bodyGrad)"/>
+        <ellipse cx="98" cy="-112" rx="24" ry="14" fill="#F6DE9A" opacity="0.5"/>
+        <g id="wing-near"></g>
+        <path d="M 100 -152
+                 C 118 -170, 136 -198, 148 -230
+                 C 156 -218, 146 -194, 134 -172
+                 C 118 -152, 106 -144, 92 -140 Z" fill="url(#bodyGrad)"/>
+        <g id="head">
+          <circle r="22" fill="url(#bodyGrad)"/>
+          <ellipse cx="10" cy="3" rx="12" ry="10" fill="#F6C7B4"/>
+          <path d="M 8 -4 C 14 -16, 30 -14, 28 0 C 22 3, 14 3, 8 -4 Z" fill="#E9A33A"/>
+          <path d="M 12 1
+                   C 52 -4, 108 -1, 156 6
+                   C 176 9, 186 18, 170 28
+                   C 150 24, 110 22, 70 20
+                   C 40 18, 18 16, 12 14 Z" fill="url(#beakGrad)" stroke="#E08A28" stroke-width="1.4" stroke-linejoin="round"/>
+          <path d="M 150 8 C 176 12, 186 18, 170 28 C 160 20, 150 16, 144 14 Z" fill="#D2652C"/>
+          <path d="M 40 2 C 78 0, 116 3, 146 7" fill="none" stroke="#fff" stroke-opacity="0.4" stroke-width="2.5" stroke-linecap="round"/>
+          <ellipse cx="46" cy="5" rx="4.5" ry="2" fill="#C9842E" opacity="0.7"/>
+          <g id="jaw">
+            <path d="M 14 8
+                     C 52 10, 104 10, 148 8
+                     C 152 22, 122 38, 76 40
+                     C 36 38, 12 24, 14 8 Z" fill="url(#pouchGrad)" stroke="#E08A28" stroke-width="1.4" stroke-linejoin="round"/>
+            <path d="M 36 24 C 66 34, 100 34, 126 24" fill="none" stroke="#E09A34" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/>
+            <path d="M 16 11 C 58 14, 108 13, 146 9" fill="none" stroke="#C9842A" stroke-width="3" stroke-linecap="round"/>
+            <g id="fish">
+              <path d="M 0 2 L 8 14 L 2 5 L 10 -1 Z" fill="#7EADC0"/>
+              <path d="M -6 3 L 1 5 L -4 8 Z" fill="#E7F2F6"/>
+              <circle cx="-3" cy="4" r="0.9" fill="#23424C"/>
+            </g>
+          </g>
+          <g id="eye" transform="translate(11,-7)">
+            <circle r="7.2" fill="#F3C3AE"/>
+            <circle r="5.8" fill="#fff"/>
+            <circle r="4.5" fill="#F6D453"/>
+            <circle cx="1.1" cy="0.4" r="2.15" fill="#1B1B1B"/>
+            <circle cx="1.9" cy="-0.6" r="0.9" fill="#fff"/>
+            <ellipse id="eyelid" rx="7.4" ry="0" fill="#F6D0BE"/>
+          </g>
+        </g>
+      </g>
+
+      <line id="crank-near" stroke="#3E4650" stroke-width="6" stroke-linecap="round"/>
+      <g id="pedal-near">
+        <rect x="-11" y="-3.5" width="22" height="7" rx="2" fill="#2C3338"/>
+        <rect x="-7" y="-1.4" width="14" height="2.8" rx="1" fill="#C9A24A"/>
+      </g>
+      <g id="leg-near" fill="none" stroke="#E07C38" stroke-linecap="round">
+        <line id="thigh-near" stroke-width="12"/>
+        <line id="shin-near" stroke-width="9"/>
+        <circle id="knee-near" r="6.5" fill="#E07C38" stroke="none"/>
+      </g>
+      <use id="foot-near" href="#foot-proto" fill="#E07C38"/>
+
+      <g id="wheel-front"></g>
+      <path d="M 206 -104 L 262 0" fill="none" stroke="#E25B3C" stroke-width="7.5" stroke-linecap="round"/>
+      <g id="bars" fill="none" stroke="#E25B3C" stroke-linecap="round">
+        <path d="M 206 -104 C 214 -118, 224 -128, 228 -130" stroke-width="7"/>
+        <path d="M 196 -126 C 210 -140, 246 -140, 262 -126" stroke-width="6.5"/>
+        <path d="M 192 -124 C 182 -134, 184 -144, 198 -138" stroke="#F3E6C8" stroke-width="8"/>
+        <path d="M 264 -124 C 276 -134, 278 -144, 264 -138" stroke="#F3E6C8" stroke-width="8"/>
+        <circle cx="250" cy="-146" r="7" fill="#F0D56A" stroke="#C9A63A" stroke-width="1.6"/>
+        <circle cx="250" cy="-146" r="2.2" fill="#FFF6CC"/>
+      </g>
+    </g>
+
+    <g id="gulls"></g>
+
+    <text x="64" y="78" fill="#143646" font-family="WenQuanYi Micro Hei, Droid Sans Fallback, sans-serif" font-size="34">鹈鹕骑自行车</text>
+    <text x="66" y="106" fill="#143646" opacity="0.72" font-family="WenQuanYi Micro Hei, Droid Sans Fallback, sans-serif" font-size="16">沿着海边栈桥，慢慢踩着踏板</text>
+  </svg>
+
+  <script>
+    const NS = "http://www.w3.org/2000/svg";
+    const GEO = {
+      wheelR: 90,
+      frontX: 262,
+      bb: { x: 122, y: 18 },
+      crank: 25,
+      hipN: { x: 96, y: -80 },
+      hipF: { x: 82, y: -78 },
+      thigh: 54,
+      shin: 76,
+      gear: 20 / 9
+    };
+    const HUB_X = 430;
+    const DECK_Y = 548;
+    const HUB_Y = DECK_Y - GEO.wheelR;
+
+    const $ = (id) => document.getElementById(id);
+    const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const params = new URLSearchParams(location.search);
+    const freezeTheta = params.has("theta") ? parseFloat(params.get("theta")) : null;
+    const freezeTime = params.has("t") ? parseFloat(params.get("t")) : 0.4;
+
+    function el(name, attrs, parent) {
+      const node = document.createElementNS(NS, name);
+      for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+      if (parent) parent.appendChild(node);
+      return node;
+    }
+
+    function kneeJoint(hip, foot, l1, l2) {
+      const dx = foot.x - hip.x;
+      const dy = foot.y - hip.y;
+      const dist = Math.hypot(dx, dy);
+      const max = l1 + l2 - 0.001;
+      const min = Math.abs(l1 - l2) + 0.001;
+      const d = Math.max(min, Math.min(max, dist));
+      const base = Math.atan2(dy, dx);
+      const cosA = (l1 * l1 + d * d - l2 * l2) / (2 * l1 * d);
+      const ang = Math.acos(Math.max(-1, Math.min(1, cosA)));
+      const ha = base - ang;
+      return {
+        x: hip.x + Math.cos(ha) * l1,
+        y: hip.y + Math.sin(ha) * l1
+      };
+    }
+
+    function setLine(node, x1, y1, x2, y2) {
+      node.setAttribute("x1", x1);
+      node.setAttribute("y1", y1);
+      node.setAttribute("x2", x2);
+      node.setAttribute("y2", y2);
+    }
+
+    function mod(n, m) {
+      return ((n % m) + m) % m;
+    }
+
+    function buildWheel(parent) {
+      el("circle", { r: GEO.wheelR, fill: "#2A2E32" }, parent);
+      el("circle", { r: 81, fill: "none", stroke: "#E6D5BF", "stroke-width": 7 }, parent);
+      el("circle", { r: 74, fill: "#E7EEF2" }, parent);
+      const spin = el("g", {}, parent);
+      for (let i = 0; i < 14; i += 1) {
+        const a = (i / 14) * Math.PI * 2;
+        el("line", {
+          x1: 0, y1: 0,
+          x2: Math.cos(a) * 68,
+          y2: Math.sin(a) * 68,
+          stroke: "#C5D0D8",
+          "stroke-width": 2,
+          "stroke-linecap": "round"
+        }, spin);
+      }
+      el("rect", { x: 56, y: -4.5, width: 13, height: 9, rx: 1.5, fill: "#F2D34E" }, spin);
+      el("circle", { r: 10, fill: "#D5DDE3", stroke: "#8E9BAA", "stroke-width": 2 }, parent);
+      el("circle", { r: 3.6, fill: "#667484" }, parent);
+      el("path", {
+        d: "M 20 -70 A 74 74 0 0 1 70 -24",
+        fill: "none",
+        stroke: "#ffffff",
+        "stroke-opacity": "0.4",
+        "stroke-width": "3",
+        "stroke-linecap": "round"
+      }, parent);
+      return spin;
+    }
+
+    function externalTangents(x1, y1, r1, x2, y2, r2) {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const dist = Math.hypot(dx, dy);
+      const vx = dx / dist;
+      const vy = dy / dist;
+      const c = (r1 - r2) / dist;
+      const h = Math.sqrt(Math.max(0, 1 - c * c));
+      return [1, -1].map((sign) => {
+        const nx = vx * c - sign * vy * h;
+        const ny = vy * c + sign * vx * h;
+        return {
+          ax: x1 + r1 * nx, ay: y1 + r1 * ny,
+          bx: x2 + r2 * nx, by: y2 + r2 * ny
+        };
+      });
+    }
+
+    function buildChainring() {
+      const g = $("chainring");
+      el("circle", { r: 20, fill: "#D7DEE4", stroke: "#8B98A6", "stroke-width": 2 }, g);
+      el("circle", {
+        r: 23.5, fill: "none", stroke: "#7E8C9A", "stroke-width": 5, "stroke-dasharray": "3.6 3.55"
+      }, g);
+      for (let i = 0; i < 5; i += 1) {
+        const a = (i / 5) * Math.PI * 2;
+        el("circle", {
+          cx: Math.cos(a) * 11,
+          cy: Math.sin(a) * 11,
+          r: 2.3,
+          fill: "#8E9BAA"
+        }, g);
+      }
+      el("circle", { r: 6.5, fill: "#C3CCD4", stroke: "#8B98A6", "stroke-width": 2 }, g);
+    }
+
+    function buildChain() {
+      const tangents = externalTangents(0, 0, 11, GEO.bb.x, GEO.bb.y, 23.5);
+      const d = tangents.map((t) => `M ${t.ax.toFixed(1)} ${t.ay.toFixed(1)} L ${t.bx.toFixed(1)} ${t.by.toFixed(1)}`).join(" ");
+      $("chain").setAttribute("d", d);
+    }
+
+    function wingPath(parent, kind) {
+      if (kind === "far") {
+        el("path", {
+          d: "M 0 0 C -8 -34, -46 -62, -92 -46 C -118 -34, -114 -10, -82 0 C -50 6, -18 4, 0 0 Z",
+          fill: "#E7E0D4"
+        }, parent);
+        el("path", {
+          d: "M -74 -2 C -114 -12, -118 -34, -92 -46 C -78 -34, -66 -12, -56 -2 Z",
+          fill: "#2B3038"
+        }, parent);
+        el("path", {
+          d: "M -84 -14 L -106 -32 M -76 -4 L -96 -22",
+          fill: "none", stroke: "#1C2128", "stroke-width": 1.5, "stroke-linecap": "round"
+        }, parent);
+      } else {
+        el("path", {
+          d: "M 4 -4 C 12 6, -8 18, -36 16 C -66 14, -90 4, -84 -8 C -70 -16, -28 -12, 4 -4 Z",
+          fill: "#F7F1E6"
+        }, parent);
+        el("path", {
+          d: "M -58 6 C -84 8, -96 0, -84 -8 C -74 -2, -64 2, -54 4 Z",
+          fill: "#2B3038"
+        }, parent);
+      }
+    }
+
+    function buildSunRays() {
+      const g = $("sun-rays");
+      for (let i = 0; i < 12; i += 1) {
+        const a = (i / 12) * Math.PI * 2;
+        el("line", {
+          x1: Math.cos(a) * 56,
+          y1: Math.sin(a) * 56,
+          x2: Math.cos(a) * 92,
+          y2: Math.sin(a) * 92,
+          stroke: "#FFE3A0",
+          "stroke-width": 4,
+          "stroke-linecap": "round",
+          opacity: "0.85"
+        }, g);
+      }
+    }
+
+    function buildCloud(parent, x, y, scale) {
+      const g = el("g", { transform: `translate(${x} ${y}) scale(${scale})` }, parent);
+      [[0, 0, 36, 22], [28, -10, 28, 18], [-30, -6, 26, 16], [14, 8, 30, 16]].forEach(([cx, cy, rx, ry]) => {
+        el("ellipse", { cx, cy, rx, ry, fill: "#fff", opacity: "0.92" }, g);
+      });
+    }
+
+    function buildScenery() {
+      buildSunRays();
+      const clouds = $("clouds");
+      buildCloud(clouds, 180, 150, 1);
+      buildCloud(clouds, 520, 96, 0.8);
+      buildCloud(clouds, 860, 168, 1.15);
+      buildCloud(clouds, 1280, 120, 0.9);
+      buildCloud(clouds, 1560, 180, 0.7);
+
+      const hills = $("hills");
+      el("path", {
+        d: "M -200 470 C -40 430, 80 452, 180 440 C 300 424, 380 390, 500 414 C 640 442, 760 456, 900 430 C 1020 408, 1120 436, 1280 448 L 1400 490 L -200 500 Z",
+        fill: "#D5E4DC"
+      }, hills);
+      el("path", {
+        d: "M -80 478 C 40 450, 160 468, 280 458 C 420 444, 520 412, 660 436 C 800 460, 940 470, 1100 450 L 1200 500 L -80 508 Z",
+        fill: "#A9CBB4"
+      }, hills);
+      const house = el("g", { transform: "translate(250 418)" }, hills);
+      el("rect", { x: -5, y: 0, width: 10, height: 32, fill: "#F7F3EA" }, house);
+      el("polygon", { points: "-8,0 8,0 0,-10", fill: "#E25B3C" }, house);
+      el("rect", { x: -2, y: 8, width: 4, height: 6, fill: "#FFE08A" }, house);
+
+      const waves = $("waves");
+      const specs = [
+        { y: 470, amp: 5, period: 220, color: "rgba(255,255,255,0.55)", width: 3, speed: 0.22 },
+        { y: 496, amp: 7, period: 280, color: "rgba(255,255,255,0.38)", width: 2.5, speed: 0.34 },
+        { y: 524, amp: 6, period: 180, color: "rgba(255,255,255,0.28)", width: 2, speed: 0.48 }
+      ];
+      specs.forEach((spec) => {
+        const start = -spec.period;
+        const end = 1200 + spec.period;
+        let d = "";
+        for (let x = start; x <= end; x += 10) {
+          const yy = spec.y + Math.sin((x / spec.period) * Math.PI * 2) * spec.amp;
+          d += `${d ? "L" : "M"}${x.toFixed(1)} ${yy.toFixed(1)}`;
+        }
+        const path = el("path", {
+          d, fill: "none", stroke: spec.color, "stroke-width": spec.width, "stroke-linecap": "round"
+        }, waves);
+        spec.node = path;
+      });
+
+      const boat = $("boat");
+      el("path", { d: "M -26 0 L 30 0 L 18 12 L -16 12 Z", fill: "#F6F1E7" }, boat);
+      el("path", { d: "M -16 12 L 18 12 L 12 16 L -10 16 Z", fill: "#E2B48A" }, boat);
+      el("path", { d: "M 2 0 L 2 -36", stroke: "#6B4A34", "stroke-width": 2 }, boat);
+      el("path", { d: "M 2 -34 L 22 -10 L 2 -10 Z", fill: "#FFFDF8" }, boat);
+      el("path", { d: "M 2 -30 L -10 -12 L 2 -12 Z", fill: "#F0E2D2" }, boat);
+
+      const sparkles = $("sparkles");
+      const glitter = [];
+      for (let i = 0; i < 16; i += 1) {
+        const node = el("ellipse", {
+          cx: 760 + (i % 8) * 28,
+          cy: 468 + (i % 5) * 14,
+          rx: 7 + (i % 3) * 3,
+          ry: 2,
+          fill: "#fff"
+        }, sparkles);
+        glitter.push({ node, phase: i * 0.7 });
+      }
+
+      const posts = $("posts");
+      for (let x = -80; x <= 1400; x += 78) {
+        el("rect", { x, y: 604, width: 16, height: 110, rx: 2, fill: "#8A5A38" }, posts);
+        el("rect", { x: x + 11, y: 604, width: 5, height: 110, fill: "#6E452C" }, posts);
+        if (Math.round(x / 78) % 5 === 2) {
+          const ring = el("g", { transform: `translate(${x + 8} 626)` }, posts);
+          el("circle", { r: 11, fill: "none", stroke: "#E25B3C", "stroke-width": 5 }, ring);
+          el("circle", { r: 11, fill: "none", stroke: "#fff", "stroke-width": 5, "stroke-dasharray": "6 6" }, ring);
+        }
+      }
+
+      const foam = $("foam");
+      for (let x = -40; x <= 1300; x += 28) {
+        el("ellipse", {
+          cx: x, cy: 618, rx: 16, ry: 3.2, fill: "#fff", opacity: "0.35"
+        }, foam);
+      }
+
+      const planks = $("planks");
+      for (let x = -30; x <= 1280; x += 24) {
+        el("line", {
+          x1: x, y1: 562, x2: x, y2: 604,
+          stroke: "#A87448", "stroke-width": 2
+        }, planks);
+      }
+
+      const gulls = $("gulls");
+      [[220, 136, 1], [540, 124, 0.78], [900, 142, 1], [1180, 130, 0.85]].forEach(([x, y, s], i) => {
+        const g = el("g", { transform: `translate(${x} ${y}) scale(${s})`, class: "gull" }, gulls);
+        el("path", { d: "M 0 0 Q -16 -10 -28 0", class: "wing left", fill: "none", stroke: "#f7f7f7", "stroke-width": 2.4, "stroke-linecap": "round" }, g);
+        el("path", { d: "M 0 0 Q 16 -10 28 0", class: "wing right", fill: "none", stroke: "#f7f7f7", "stroke-width": 2.4, "stroke-linecap": "round" }, g);
+        g.dataset.phase = String(i * 1.3);
+        g.dataset.x = String(x);
+        g.dataset.y = String(y);
+        g.dataset.s = String(s);
+      });
+
+      return { specs, glitter };
+    }
+
+    const rearSpin = buildWheel($("wheel-rear"));
+    const frontWheel = $("wheel-front");
+    frontWheel.setAttribute("transform", `translate(${GEO.frontX} 0)`);
+    const frontSpin = buildWheel(frontWheel);
+    frontSpin.querySelector("rect").setAttribute("transform", "rotate(50)");
+    buildChainring();
+    buildChain();
+    wingPath($("wing-far"), "far");
+    wingPath($("wing-near"), "near");
+    const scenery = buildScenery();
+
+    const nodes = {
+      rider: $("rider"),
+      shadow: $("shadow"),
+      thighN: $("thigh-near"),
+      shinN: $("shin-near"),
+      kneeN: $("knee-near"),
+      footN: $("foot-near"),
+      thighF: $("thigh-far"),
+      shinF: $("shin-far"),
+      kneeF: $("knee-far"),
+      footF: $("foot-far"),
+      crankN: $("crank-near"),
+      crankF: $("crank-far"),
+      pedalN: $("pedal-near"),
+      pedalF: $("pedal-far"),
+      chainring: $("chainring"),
+      cog: $("cog"),
+      head: $("head"),
+      jaw: $("jaw"),
+      fish: $("fish"),
+      eyelid: $("eyelid"),
+      wingFar: $("wing-far"),
+      wingNear: $("wing-near"),
+      sunRays: $("sun-rays"),
+      clouds: $("clouds"),
+      hills: $("hills"),
+      posts: $("posts"),
+      planks: $("planks"),
+      foam: $("foam"),
+      boat: $("boat")
+    };
+
+    let theta = freezeTheta == null || Number.isNaN(freezeTheta) ? 0.75 : freezeTheta;
+    let distance = (theta / (Math.PI * 2)) * GEO.gear * (Math.PI * 2) * GEO.wheelR;
+    let last = null;
+
+    function render(timeSeconds) {
+      const bob = Math.sin(theta * 2) * 2.6;
+      nodes.rider.setAttribute("transform", `translate(${HUB_X} ${HUB_Y + bob})`);
+      const lift = (Math.sin(theta * 2) + 1) / 2;
+      nodes.shadow.setAttribute("transform", `translate(${HUB_X + 130} ${DECK_Y + 2}) scale(${1.04 - lift * 0.06} 1)`);
+      nodes.shadow.setAttribute("opacity", (0.2 - lift * 0.05).toFixed(3));
+
+      const wheelDeg = (distance / GEO.wheelR) * (180 / Math.PI);
+      rearSpin.setAttribute("transform", `rotate(${wheelDeg})`);
+      frontSpin.setAttribute("transform", `rotate(${wheelDeg + 18})`);
+      nodes.cog.setAttribute("transform", `rotate(${wheelDeg})`);
+      const crankDeg = theta * (180 / Math.PI);
+      nodes.chainring.setAttribute("transform", `translate(${GEO.bb.x} ${GEO.bb.y}) rotate(${crankDeg})`);
+
+      const near = {
+        x: GEO.bb.x + Math.cos(theta) * GEO.crank,
+        y: GEO.bb.y + Math.sin(theta) * GEO.crank
+      };
+      const far = {
+        x: GEO.bb.x + Math.cos(theta + Math.PI) * GEO.crank,
+        y: GEO.bb.y + Math.sin(theta + Math.PI) * GEO.crank
+      };
+      setLine(nodes.crankN, GEO.bb.x, GEO.bb.y, near.x, near.y);
+      setLine(nodes.crankF, GEO.bb.x, GEO.bb.y, far.x, far.y);
+      const tiltN = Math.sin(theta) * 10;
+      const tiltF = Math.sin(theta + Math.PI) * 10;
+      nodes.pedalN.setAttribute("transform", `translate(${near.x} ${near.y}) rotate(${tiltN})`);
+      nodes.pedalF.setAttribute("transform", `translate(${far.x} ${far.y}) rotate(${tiltF})`);
+
+      const kneeN = kneeJoint(GEO.hipN, near, GEO.thigh, GEO.shin);
+      const kneeF = kneeJoint(GEO.hipF, far, GEO.thigh, GEO.shin);
+      setLine(nodes.thighN, GEO.hipN.x, GEO.hipN.y, kneeN.x, kneeN.y);
+      setLine(nodes.shinN, kneeN.x, kneeN.y, near.x, near.y - 8);
+      nodes.kneeN.setAttribute("cx", kneeN.x);
+      nodes.kneeN.setAttribute("cy", kneeN.y);
+      nodes.footN.setAttribute("transform", `translate(${near.x} ${near.y}) rotate(${tiltN})`);
+
+      setLine(nodes.thighF, GEO.hipF.x, GEO.hipF.y, kneeF.x, kneeF.y);
+      setLine(nodes.shinF, kneeF.x, kneeF.y, far.x, far.y - 7);
+      nodes.kneeF.setAttribute("cx", kneeF.x);
+      nodes.kneeF.setAttribute("cy", kneeF.y);
+      nodes.footF.setAttribute("transform", `translate(${far.x} ${far.y}) rotate(${tiltF}) scale(0.9)`);
+
+      const nod = Math.sin(theta * 2 + 0.4) * 2.1;
+      nodes.head.setAttribute("transform", `translate(156 -250) rotate(${nod} -4 16)`);
+      const flap = Math.sin(timeSeconds * 3.1) * 9;
+      nodes.wingFar.setAttribute("transform", `translate(22 -158) rotate(${-18 + flap})`);
+      nodes.wingNear.setAttribute("transform", `translate(36 -132) rotate(${Math.sin(timeSeconds * 3.1 + 0.8) * 3})`);
+
+      const chatter = timeSeconds % 5.4;
+      let open = 0;
+      if (chatter > 4.7) open = Math.sin(((chatter - 4.7) / 0.7) * Math.PI) * 14;
+      const breathe = 1 + Math.sin(timeSeconds * 2.4) * 0.018;
+      nodes.jaw.setAttribute("transform", `rotate(${open} 16 10) translate(16 10) scale(1 ${breathe}) translate(-16 -10)`);
+      nodes.fish.setAttribute("transform", `translate(132 14) rotate(${28 + Math.sin(timeSeconds * 7) * (9 + open * 0.35)})`);
+
+      const blinkPhase = timeSeconds % 3.5;
+      let blink = 0;
+      if (blinkPhase > 3.28) blink = Math.sin(((blinkPhase - 3.28) / 0.22) * Math.PI);
+      nodes.eyelid.setAttribute("ry", (7.4 * blink).toFixed(2));
+
+      nodes.sunRays.setAttribute("transform", `translate(1040 116) rotate(${timeSeconds * 6})`);
+
+      const scroll = distance;
+      nodes.planks.setAttribute("transform", `translate(${-mod(scroll, 24)} 0)`);
+      nodes.posts.setAttribute("transform", `translate(${-mod(scroll, 78)} 0)`);
+      nodes.foam.setAttribute("transform", `translate(${-mod(scroll * 0.65, 28)} 0)`);
+      scenery.specs.forEach((spec) => {
+        spec.node.setAttribute("transform", `translate(${-mod(scroll * spec.speed, spec.period)} 0)`);
+      });
+      nodes.clouds.setAttribute("transform", `translate(${-mod(scroll * 0.08, 1700)} 0)`);
+      nodes.hills.setAttribute("transform", `translate(${-mod(scroll * 0.04, 900)} 0)`);
+      const boatX = 980 - mod(scroll * 0.18, 1500);
+      nodes.boat.setAttribute("transform", `translate(${boatX} 492)`);
+      scenery.glitter.forEach((spark, i) => {
+        const tw = 0.25 + 0.75 * (0.5 + 0.5 * Math.sin(timeSeconds * 2.2 + spark.phase));
+        spark.node.setAttribute("opacity", tw.toFixed(2));
+      });
+      document.querySelectorAll(".gull").forEach((gull) => {
+        const phase = parseFloat(gull.dataset.phase);
+        const baseX = parseFloat(gull.dataset.x);
+        const baseY = parseFloat(gull.dataset.y);
+        const scale = parseFloat(gull.dataset.s);
+        const x = baseX - mod(scroll * 0.12 + phase * 40, 1400);
+        const y = baseY + Math.sin(timeSeconds * 1.4 + phase) * 6;
+        gull.setAttribute("transform", `translate(${x} ${y}) scale(${scale})`);
+        const wing = Math.sin(timeSeconds * 6 + phase) * 16;
+        gull.querySelector(".left").setAttribute("transform", `rotate(${wing})`);
+        gull.querySelector(".right").setAttribute("transform", `rotate(${-wing})`);
+      });
+    }
+
+    function frame(now) {
+      if (last == null) last = now;
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      if (freezeTheta == null && !reduceMotion) {
+        const crankVel = 1.45;
+        theta += crankVel * dt;
+        distance += crankVel * GEO.gear * GEO.wheelR * dt;
+      }
+      render(now / 1000);
+      if (freezeTheta == null && !reduceMotion) requestAnimationFrame(frame);
+    }
+
+    if (freezeTheta != null || reduceMotion) {
+      render(Number.isNaN(freezeTime) ? 0.4 : freezeTime);
+    } else {
+      requestAnimationFrame(frame);
+    }
+  </script>
+</body>
+</html>
