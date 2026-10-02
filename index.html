@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:,">
+  <title>星屿 · 体素建造</title>
+  <style>
+    :root {
+      --ink: #f5f7ff;
+      --muted: rgba(225, 231, 255, .62);
+      --glass: rgba(8, 12, 25, .62);
+      --line: rgba(255, 255, 255, .14);
+      --accent: #95f4cf;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body {
+      background: #050713;
+      color: var(--ink);
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+      user-select: none;
+    }
+
+    canvas { display: block; }
+
+    #hud {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .brand {
+      position: absolute;
+      top: 26px;
+      left: 28px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      letter-spacing: .12em;
+      text-shadow: 0 2px 14px rgba(0, 0, 0, .45);
+    }
+
+    .brand-mark {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, .28);
+      border-radius: 11px;
+      background: rgba(255, 255, 255, .08);
+      backdrop-filter: blur(12px);
+      font-size: 17px;
+      box-shadow: inset 0 1px rgba(255, 255, 255, .12);
+    }
+
+    .brand strong { display: block; font-size: 14px; font-weight: 650; }
+    .brand small {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 9px;
+      letter-spacing: .22em;
+    }
+
+    #coords {
+      position: absolute;
+      top: 28px;
+      right: 28px;
+      padding: 9px 13px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--glass);
+      color: var(--muted);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 10px;
+      letter-spacing: .08em;
+      backdrop-filter: blur(12px);
+    }
+
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 18px;
+      height: 18px;
+      opacity: 0;
+      transform: translate(-50%, -50%);
+      transition: opacity .2s;
+    }
+
+    body.playing #crosshair { opacity: 1; }
+    #crosshair::before, #crosshair::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, .9);
+      box-shadow: 0 0 5px rgba(0, 0, 0, .9);
+      transform: translate(-50%, -50%);
+    }
+    #crosshair::before { width: 16px; height: 2px; }
+    #crosshair::after { width: 2px; height: 16px; }
+
+    #hint {
+      position: absolute;
+      left: 50%;
+      bottom: 116px;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: var(--glass);
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: .05em;
+      opacity: 0;
+      transform: translateX(-50%) translateY(8px);
+      transition: .25s ease;
+      backdrop-filter: blur(10px);
+    }
+    #hint.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    #hotbar {
+      position: absolute;
+      left: 50%;
+      bottom: 24px;
+      display: flex;
+      gap: 7px;
+      padding: 7px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: rgba(7, 10, 22, .7);
+      box-shadow: 0 12px 45px rgba(0, 0, 0, .3);
+      transform: translateX(-50%);
+      backdrop-filter: blur(18px);
+    }
+
+    .slot {
+      position: relative;
+      width: 58px;
+      height: 58px;
+      display: grid;
+      place-items: center;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      color: rgba(255, 255, 255, .62);
+      transition: .18s ease;
+    }
+    .slot::before {
+      content: "";
+      width: 25px;
+      height: 25px;
+      border-radius: 5px;
+      background: var(--block);
+      box-shadow:
+        inset 5px 5px 8px rgba(255, 255, 255, .14),
+        inset -5px -5px 8px rgba(0, 0, 0, .18),
+        0 7px 13px rgba(0, 0, 0, .25);
+      transform: rotateX(52deg) rotateZ(45deg);
+    }
+    .slot.active {
+      border-color: rgba(149, 244, 207, .55);
+      background: rgba(149, 244, 207, .1);
+      color: var(--ink);
+      transform: translateY(-3px);
+      box-shadow: 0 6px 24px rgba(149, 244, 207, .1);
+    }
+    .slot kbd {
+      position: absolute;
+      top: 5px;
+      left: 7px;
+      font: 9px/1 "SFMono-Regular", Consolas, monospace;
+    }
+    .slot span {
+      position: absolute;
+      right: 6px;
+      bottom: 5px;
+      font-size: 8px;
+      letter-spacing: .08em;
+    }
+
+    #start {
+      position: fixed;
+      inset: 0;
+      z-index: 5;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 50% 42%, rgba(61, 85, 130, .18), transparent 38%),
+        rgba(4, 6, 15, .48);
+      cursor: pointer;
+      transition: opacity .35s ease, visibility .35s;
+      backdrop-filter: blur(5px);
+    }
+    #start.hidden { opacity: 0; visibility: hidden; }
+
+    .start-card {
+      width: min(430px, calc(100vw - 40px));
+      padding: 38px 40px 32px;
+      border: 1px solid rgba(255, 255, 255, .18);
+      border-radius: 22px;
+      background: linear-gradient(145deg, rgba(17, 23, 43, .85), rgba(8, 11, 25, .74));
+      text-align: center;
+      box-shadow: 0 30px 90px rgba(0, 0, 0, .42), inset 0 1px rgba(255, 255, 255, .1);
+    }
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--accent);
+      font: 10px/1 "SFMono-Regular", Consolas, monospace;
+      letter-spacing: .28em;
+    }
+    h1 { margin: 0; font-size: clamp(30px, 6vw, 46px); font-weight: 650; letter-spacing: .08em; }
+    .subtitle { margin: 12px 0 28px; color: var(--muted); font-size: 12px; letter-spacing: .08em; }
+    .start-button {
+      width: 100%;
+      padding: 14px;
+      border: 1px solid rgba(149, 244, 207, .45);
+      border-radius: 11px;
+      background: rgba(149, 244, 207, .12);
+      color: #dffff2;
+      font: 600 12px/1 inherit;
+      letter-spacing: .16em;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 24px;
+      margin-top: 25px;
+      color: var(--muted);
+      text-align: left;
+      font-size: 10px;
+    }
+    .controls span:nth-child(even) { text-align: right; color: rgba(255,255,255,.84); }
+
+    #toast {
+      position: fixed;
+      top: 82px;
+      left: 50%;
+      z-index: 6;
+      padding: 9px 15px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--glass);
+      color: rgba(255,255,255,.78);
+      font-size: 11px;
+      opacity: 0;
+      transform: translate(-50%, -8px);
+      transition: .2s ease;
+      pointer-events: none;
+      backdrop-filter: blur(12px);
+    }
+    #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 540px) {
+      .brand { top: 16px; left: 16px; }
+      #coords { top: 18px; right: 16px; }
+      .slot { width: 50px; height: 52px; }
+      .slot span { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <div class="brand">
+      <div class="brand-mark">✦</div>
+      <div><strong>星屿计划</strong><small>VOXEL FRONTIER</small></div>
+    </div>
+    <div id="coords">X 0.0&nbsp;&nbsp;Y 0.0&nbsp;&nbsp;Z 0.0</div>
+    <div id="crosshair"></div>
+    <div id="hint">左键放置 · 右键破坏</div>
+    <div id="hotbar"></div>
+  </div>
+
+  <div id="start">
+    <div class="start-card">
+      <p class="eyebrow">A TINY WORLD AMONG STARS</p>
+      <h1>星屿</h1>
+      <p class="subtitle">在漂浮的静谧岛屿上，自由建造你的世界</p>
+      <div class="start-button">点击进入世界</div>
+      <div class="controls">
+        <span>移动 / 跳跃</span><span>WASD / 空格</span>
+        <span>观察</span><span>移动鼠标</span>
+        <span>建造 / 破坏</span><span>左键 / 右键</span>
+        <span>切换方块</span><span>1—5 / 滚轮</span>
+      </div>
+    </div>
+  </div>
+  <div id="toast"></div>
+
+  <!-- Three.js 只负责渲染；场景、方块与星空均由下方代码生成，无外部模型资源。 -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js"></script>
+  <script>
+    (() => {
+      "use strict";
+
+      // ---------- 基础场景 ----------
+      const scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x0b1022, 0.012);
+
+      const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.05, 500);
+      camera.rotation.order = "YXZ";
+      // 出生点贴近岛面，进入游戏即可直接看到地形。
+      camera.position.set(4, 3.15, 7);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      renderer.setSize(innerWidth, innerHeight);
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.05;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      document.body.prepend(renderer.domElement);
+
+      // 半球光模拟天空与地面反光，方向光提供柔和阴影。
+      scene.add(new THREE.HemisphereLight(0x8da9ff, 0x26301f, 1.35));
+      const moonLight = new THREE.DirectionalLight(0xfff2d2, 2.1);
+      moonLight.position.set(-18, 28, 12);
+      moonLight.castShadow = true;
+      moonLight.shadow.mapSize.set(2048, 2048);
+      moonLight.shadow.camera.left = moonLight.shadow.camera.bottom = -30;
+      moonLight.shadow.camera.right = moonLight.shadow.camera.top = 30;
+      scene.add(moonLight);
+
+      // ---------- 程序化天空盒与星空 ----------
+      const skyMaterial = new THREE.ShaderMaterial({
+        side: THREE.BackSide,
+        depthWrite: false,
+        uniforms: {
+          topColor: { value: new THREE.Color(0x050817) },
+          horizonColor: { value: new THREE.Color(0x273457) },
+          bottomColor: { value: new THREE.Color(0x101728) }
+        },
+        vertexShader: `
+          varying vec3 vPosition;
+          void main() {
+            vPosition = position;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          varying vec3 vPosition;
+          uniform vec3 topColor;
+          uniform vec3 horizonColor;
+          uniform vec3 bottomColor;
+          void main() {
+            float h = normalize(vPosition).y;
+            vec3 color = h > 0.0
+              ? mix(horizonColor, topColor, smoothstep(0.0, 0.8, h))
+              : mix(horizonColor, bottomColor, smoothstep(0.0, -0.8, h));
+            gl_FragColor = vec4(color, 1.0);
+          }
+        `
+      });
+      const skybox = new THREE.Mesh(new THREE.BoxGeometry(300, 300, 300), skyMaterial);
+      scene.add(skybox);
+
+      const starPositions = [];
+      const starColors = [];
+      const starPalette = [new THREE.Color(0xffffff), new THREE.Color(0xb9d5ff), new THREE.Color(0xffdfb0)];
+      for (let i = 0; i < 1600; i++) {
+        const radius = 105 + Math.random() * 30;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        starPositions.push(
+          radius * Math.sin(phi) * Math.cos(theta),
+          radius * Math.cos(phi),
+          radius * Math.sin(phi) * Math.sin(theta)
+        );
+        const color = starPalette[Math.floor(Math.random() * starPalette.length)];
+        starColors.push(color.r, color.g, color.b);
+      }
+      const starGeometry = new THREE.BufferGeometry();
+      starGeometry.setAttribute("position", new THREE.Float32BufferAttribute(starPositions, 3));
+      starGeometry.setAttribute("color", new THREE.Float32BufferAttribute(starColors, 3));
+      const stars = new THREE.Points(starGeometry, new THREE.PointsMaterial({
+        size: .48, sizeAttenuation: true, vertexColors: true, transparent: true, opacity: .9
+      }));
+      scene.add(stars);
+
+      // 远处月亮和光晕也由基础几何体创建。
+      const moon = new THREE.Mesh(
+        new THREE.SphereGeometry(4.3, 32, 32),
+        new THREE.MeshBasicMaterial({ color: 0xfff4d5 })
+      );
+      moon.position.set(-55, 38, -85);
+      scene.add(moon);
+      const halo = new THREE.Mesh(
+        new THREE.SphereGeometry(5.2, 32, 32),
+        new THREE.MeshBasicMaterial({ color: 0xd7deff, transparent: true, opacity: .08, side: THREE.BackSide })
+      );
+      halo.position.copy(moon.position);
+      scene.add(halo);
+
+      // ---------- 方块系统 ----------
+      const blockTypes = [
+        { id: "grass", name: "草地", color: 0x6fa360 },
+        { id: "stone", name: "岩石", color: 0x7c8493 },
+        { id: "wood",  name: "原木", color: 0x9b6b45 },
+        { id: "sand",  name: "沙砾", color: 0xd7bd78 },
+        { id: "crystal", name: "晶体", color: 0x74cfc1, emissive: 0x123c3b }
+      ];
+      const materials = {};
+      blockTypes.forEach(type => {
+        materials[type.id] = new THREE.MeshStandardMaterial({
+          color: type.color,
+          roughness: type.id === "crystal" ? .28 : .86,
+          metalness: type.id === "crystal" ? .12 : .02,
+          emissive: type.emissive || 0x000000,
+          emissiveIntensity: .75
+        });
+      });
+
+      const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
+      const edgeGeometry = new THREE.EdgesGeometry(cubeGeometry);
+      const blocks = new Map();
+      const blockMeshes = [];
+      const keyOf = (x, y, z) => `${x},${y},${z}`;
+
+      function addBlock(x, y, z, type = "grass", permanent = false) {
+        x = Math.round(x); y = Math.round(y); z = Math.round(z);
+        const key = keyOf(x, y, z);
+        if (blocks.has(key)) return false;
+        const mesh = new THREE.Mesh(cubeGeometry, materials[type]);
+        mesh.position.set(x, y, z);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.userData = { type, permanent };
+        scene.add(mesh);
+        blocks.set(key, mesh);
+        blockMeshes.push(mesh);
+        return true;
+      }
+
+      function removeBlock(mesh) {
+        if (!mesh || mesh.userData.permanent) return false;
+        blocks.delete(keyOf(mesh.position.x, mesh.position.y, mesh.position.z));
+        blockMeshes.splice(blockMeshes.indexOf(mesh), 1);
+        scene.remove(mesh);
+        return true;
+      }
+
+      // 以圆形高度场生成一座带岩层的漂浮岛。
+      for (let x = -10; x <= 10; x++) {
+        for (let z = -10; z <= 10; z++) {
+          const distance = Math.sqrt(x * x + z * z);
+          const wobble = Math.sin(x * 1.7) * .45 + Math.cos(z * 1.35) * .38;
+          if (distance < 9.2 + wobble) {
+            const top = Math.floor(1.25 - distance * .055 + Math.sin(x * .55) * .22);
+            const depth = Math.max(2, Math.floor(5.5 - distance * .33));
+            for (let y = top - depth; y <= top; y++) {
+              let type = y === top ? "grass" : (y > top - 2 ? "stone" : "stone");
+              if (distance > 7.8 && y === top) type = "sand";
+              addBlock(x, y, z, type, y < -4);
+            }
+          }
+        }
+      }
+
+      // 小树：仍然只使用立方体。
+      [[-5, 0, -3], [5, 0, -4], [-6, 0, 5]].forEach(([x, , z]) => {
+        const ground = [...blocks.values()]
+          .filter(b => b.position.x === x && b.position.z === z)
+          .reduce((highest, b) => Math.max(highest, b.position.y), -10);
+        for (let y = 1; y <= 3; y++) addBlock(x, ground + y, z, "wood");
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dz = -1; dz <= 1; dz++) {
+            addBlock(x + dx, ground + 4, z + dz, "grass");
+          }
+        }
+        addBlock(x, ground + 5, z, "grass");
+      });
+
+      // 零散晶体让夜间光照更有层次。
+      [[7, 2, 2], [-7, 2, -1], [2, 2, -7]].forEach(([x, y, z]) => addBlock(x, y, z, "crystal"));
+
+      // 选中方块的白色线框。
+      const selection = new THREE.LineSegments(
+        edgeGeometry,
+        new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: .8 })
+      );
+      selection.scale.setScalar(1.008);
+      selection.visible = false;
+      scene.add(selection);
+
+      // ---------- 快捷物品栏 ----------
+      const hotbar = document.getElementById("hotbar");
+      let selectedType = 0;
+      blockTypes.forEach((type, index) => {
+        const slot = document.createElement("div");
+        slot.className = `slot${index === 0 ? " active" : ""}`;
+        slot.style.setProperty("--block", `#${type.color.toString(16).padStart(6, "0")}`);
+        slot.innerHTML = `<kbd>${index + 1}</kbd><span>${type.name}</span>`;
+        hotbar.appendChild(slot);
+      });
+
+      function selectSlot(index) {
+        selectedType = (index + blockTypes.length) % blockTypes.length;
+        [...hotbar.children].forEach((slot, i) => slot.classList.toggle("active", i === selectedType));
+        showToast(`已选择 · ${blockTypes[selectedType].name}`);
+      }
+
+      let toastTimer;
+      function showToast(message) {
+        const toast = document.getElementById("toast");
+        toast.textContent = message;
+        toast.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove("show"), 1100);
+      }
+
+      // ---------- 第一人称控制 ----------
+      const keys = {};
+      const velocity = new THREE.Vector3();
+      const player = {
+        radius: .32,
+        height: 1.75,
+        eyeHeight: 1.58,
+        grounded: false
+      };
+      let yaw = 0;
+      let pitch = -.18;
+      let locked = false;
+
+      function solidAt(x, y, z) {
+        return blocks.has(keyOf(Math.round(x), Math.round(y), Math.round(z)));
+      }
+
+      // 用玩家包围盒采样方块，避免穿过地面和墙壁。
+      function collides(position) {
+        const minX = Math.floor(position.x - player.radius + .5);
+        const maxX = Math.floor(position.x + player.radius + .5);
+        const minY = Math.floor(position.y - player.eyeHeight + .5);
+        const maxY = Math.floor(position.y + (player.height - player.eyeHeight) + .5);
+        const minZ = Math.floor(position.z - player.radius + .5);
+        const maxZ = Math.floor(position.z + player.radius + .5);
+        for (let x = minX; x <= maxX; x++)
+          for (let y = minY; y <= maxY; y++)
+            for (let z = minZ; z <= maxZ; z++)
+              if (solidAt(x, y, z)) return true;
+        return false;
+      }
+
+      const start = document.getElementById("start");
+      start.addEventListener("click", () => renderer.domElement.requestPointerLock());
+      document.addEventListener("pointerlockchange", () => {
+        locked = document.pointerLockElement === renderer.domElement;
+        start.classList.toggle("hidden", locked);
+        document.body.classList.toggle("playing", locked);
+        if (locked) {
+          const hint = document.getElementById("hint");
+          hint.classList.add("show");
+          setTimeout(() => hint.classList.remove("show"), 2600);
+        }
+      });
+
+      document.addEventListener("mousemove", event => {
+        if (!locked) return;
+        yaw -= event.movementX * .0022;
+        pitch -= event.movementY * .0022;
+        pitch = Math.max(-Math.PI / 2 + .02, Math.min(Math.PI / 2 - .02, pitch));
+      });
+
+      document.addEventListener("keydown", event => {
+        keys[event.code] = true;
+        if (/^Digit[1-5]$/.test(event.code)) selectSlot(Number(event.code.slice(-1)) - 1);
+        if (event.code === "Space") event.preventDefault();
+      });
+      document.addEventListener("keyup", event => keys[event.code] = false);
+      document.addEventListener("wheel", event => {
+        if (locked) selectSlot(selectedType + (event.deltaY > 0 ? 1 : -1));
+      }, { passive: true });
+      document.addEventListener("contextmenu", event => event.preventDefault());
+
+      // ---------- 方块交互 ----------
+      const raycaster = new THREE.Raycaster();
+      raycaster.far = 7;
+      const screenCenter = new THREE.Vector2(0, 0);
+      let currentHit = null;
+
+      function updateTarget() {
+        raycaster.setFromCamera(screenCenter, camera);
+        const hits = raycaster.intersectObjects(blockMeshes, false);
+        currentHit = hits[0] || null;
+        selection.visible = !!currentHit;
+        if (currentHit) selection.position.copy(currentHit.object.position);
+      }
+
+      function playerOverlapsBlock(position) {
+        const feet = camera.position.y - player.eyeHeight;
+        return Math.abs(position.x - camera.position.x) < .82 &&
+          Math.abs(position.z - camera.position.z) < .82 &&
+          position.y + .5 > feet &&
+          position.y - .5 < feet + player.height;
+      }
+
+      document.addEventListener("mousedown", event => {
+        if (!locked || !currentHit) return;
+        if (event.button === 0) {
+          // 左键：沿击中面的法线，在相邻格放置方块。
+          const position = currentHit.object.position.clone().add(currentHit.face.normal);
+          position.round();
+          if (!playerOverlapsBlock(position) &&
+              addBlock(position.x, position.y, position.z, blockTypes[selectedType].id)) {
+            // 再用真实碰撞数据复核，防止边界角度下把方块放进玩家包围盒。
+            const placed = blocks.get(keyOf(position.x, position.y, position.z));
+            if (collides(camera.position)) {
+              removeBlock(placed);
+              showToast("这里会挡住你");
+            } else {
+              showToast(`放置 · ${blockTypes[selectedType].name}`);
+            }
+          }
+        } else if (event.button === 2) {
+          // 右键：移除准星指向的方块。
+          if (removeBlock(currentHit.object)) showToast("方块已破坏");
+        }
+      });
+
+      // ---------- 游戏循环 ----------
+      const clock = new THREE.Clock();
+      const forward = new THREE.Vector3();
+      const right = new THREE.Vector3();
+      const move = new THREE.Vector3();
+      const nextPosition = new THREE.Vector3();
+      let elapsed = 0;
+
+      function updatePlayer(dt) {
+        camera.rotation.set(pitch, yaw, 0);
+        forward.set(-Math.sin(yaw), 0, -Math.cos(yaw));
+        right.set(Math.cos(yaw), 0, -Math.sin(yaw));
+        move.set(0, 0, 0);
+        if (keys.KeyW) move.add(forward);
+        if (keys.KeyS) move.sub(forward);
+        if (keys.KeyD) move.add(right);
+        if (keys.KeyA) move.sub(right);
+        if (move.lengthSq()) move.normalize().multiplyScalar(5.2);
+
+        const response = Math.min(1, dt * 12);
+        velocity.x += (move.x - velocity.x) * response;
+        velocity.z += (move.z - velocity.z) * response;
+        velocity.y -= 18 * dt;
+        if (keys.Space && player.grounded) {
+          velocity.y = 7.1;
+          player.grounded = false;
+        }
+
+        // 分轴处理碰撞，让玩家可以自然贴墙滑动。
+        nextPosition.copy(camera.position);
+        nextPosition.x += velocity.x * dt;
+        if (!collides(nextPosition)) camera.position.x = nextPosition.x;
+        else velocity.x = 0;
+
+        nextPosition.copy(camera.position);
+        nextPosition.z += velocity.z * dt;
+        if (!collides(nextPosition)) camera.position.z = nextPosition.z;
+        else velocity.z = 0;
+
+        nextPosition.copy(camera.position);
+        nextPosition.y += velocity.y * dt;
+        if (!collides(nextPosition)) {
+          camera.position.y = nextPosition.y;
+          player.grounded = false;
+        } else {
+          if (velocity.y < 0) player.grounded = true;
+          velocity.y = 0;
+        }
+
+        // 掉落后回到岛屿出生点。
+        if (camera.position.y < -16) {
+          camera.position.set(4, 3.15, 7);
+          velocity.set(0, 0, 0);
+          showToast("已返回星屿");
+        }
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        const dt = Math.min(clock.getDelta(), .05);
+        elapsed += dt;
+        if (locked) updatePlayer(dt);
+        else camera.rotation.set(pitch, yaw, 0);
+        updateTarget();
+
+        // 轻微星光呼吸与天空缓慢旋转。
+        stars.rotation.y += dt * .006;
+        stars.material.opacity = .82 + Math.sin(elapsed * .7) * .1;
+        halo.scale.setScalar(1 + Math.sin(elapsed * .45) * .035);
+        skybox.position.copy(camera.position);
+        stars.position.copy(camera.position);
+
+        document.getElementById("coords").innerHTML =
+          `X ${camera.position.x.toFixed(1)}&nbsp;&nbsp;Y ${camera.position.y.toFixed(1)}&nbsp;&nbsp;Z ${camera.position.z.toFixed(1)}`;
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      addEventListener("resize", () => {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+        renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      });
+    })();
+  </script>
+</body>
+</html>
