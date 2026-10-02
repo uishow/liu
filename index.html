@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:,">
   <title>星屿 · 体素建造</title>
   <style>
     :root {
@@ -301,7 +302,8 @@
 
       const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.05, 500);
       camera.rotation.order = "YXZ";
-      camera.position.set(4, 6, 7);
+      // 出生点贴近岛面，进入游戏即可直接看到地形。
+      camera.position.set(4, 3.15, 7);
 
       const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
       renderer.setSize(innerWidth, innerHeight);
@@ -603,7 +605,14 @@
           position.round();
           if (!playerOverlapsBlock(position) &&
               addBlock(position.x, position.y, position.z, blockTypes[selectedType].id)) {
-            showToast(`放置 · ${blockTypes[selectedType].name}`);
+            // 再用真实碰撞数据复核，防止边界角度下把方块放进玩家包围盒。
+            const placed = blocks.get(keyOf(position.x, position.y, position.z));
+            if (collides(camera.position)) {
+              removeBlock(placed);
+              showToast("这里会挡住你");
+            } else {
+              showToast(`放置 · ${blockTypes[selectedType].name}`);
+            }
           }
         } else if (event.button === 2) {
           // 右键：移除准星指向的方块。
@@ -662,7 +671,7 @@
 
         // 掉落后回到岛屿出生点。
         if (camera.position.y < -16) {
-          camera.position.set(4, 6, 7);
+          camera.position.set(4, 3.15, 7);
           velocity.set(0, 0, 0);
           showToast("已返回星屿");
         }
