@@ -16,11 +16,12 @@ The score follows the close-list screen used on these reports:
   those names green, and one name still inside the primary band.
   Pass --hot only to override that
 
-The same ranking is written to an Excel file beside the input. The default
-name adds ``_次日排序`` before ``.xlsx``.
+The same ranking is written to Excel. By default the workbook lands in
+``reports/live`` and the file name adds ``_次日排序`` before ``.xlsx``.
+A bare file name is looked up in that directory. The script is executable.
 
 Example:
-    python rank_qiandai.py 钱袋_20261013_收盘.csv
+    guess/rank_qiandai.py 钱袋_20261013_收盘.csv
 """
 
 from __future__ import annotations
@@ -35,6 +36,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from xml.sax.saxutils import escape
 
+
+LIVE_DIR = Path("/Users/beryllewis/private/stock/DS/赢策量化分析指标系统/reports/live")
 
 EXTENDED_PCT = 4.0
 WEAK_ZONE_K10 = 0.16
@@ -364,9 +367,18 @@ def parse_hot(text: str) -> set[str]:
     return {part.strip() for part in text.split(",") if part.strip()}
 
 
-def default_xlsx_path(csv_path: str) -> Path:
-    source = Path(csv_path)
-    return source.with_name(source.stem + "_次日排序.xlsx")
+def resolve_csv(text: str) -> Path:
+    given = Path(text).expanduser()
+    if given.is_file():
+        return given
+    candidate = LIVE_DIR / given.name
+    if candidate.is_file():
+        return candidate
+    raise SystemExit(f"找不到清单: {text}")
+
+
+def default_xlsx_path(csv_path: Path) -> Path:
+    return LIVE_DIR / f"{csv_path.stem}_次日排序.xlsx"
 
 
 _HEADERS = ("分组", "代码", "名称", "涨幅%", "收盘K10", "昨收K10", "口径", "行业", "分数", "说明")
@@ -497,6 +509,7 @@ def _notes_sheet(header: list[str]) -> str:
 
 def write_xlsx(path: str | Path, names: list[Name], header: list[str]) -> None:
     target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
     package = {
         "[Content_Types].xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -545,7 +558,7 @@ def write_xlsx(path: str | Path, names: list[Name], header: list[str]) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="给收盘弱钱袋清单排下一交易日的相对顺序")
-    parser.add_argument("csv", help="收盘清单 CSV")
+    parser.add_argument("csv", help="收盘清单 CSV。只给文件名时，到 reports/live 里找")
     parser.add_argument(
         "--hot",
         default="",
@@ -554,10 +567,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--xlsx",
         default="",
-        help="结果 Excel 路径。默认写到清单旁边，文件名加 _次日排序",
+        help="结果 Excel 路径。默认写到 reports/live，文件名加 _次日排序",
     )
     args = parser.parse_args(argv)
-    loaded = load_rows(args.csv)
+    source = resolve_csv(args.csv)
+    loaded = load_rows(str(source))
     if args.hot.strip():
         hot = parse_hot(args.hot)
         header = ["领涨行业由参数指定: " + "、".join(sorted(hot))]
@@ -566,7 +580,7 @@ def main(argv: list[str] | None = None) -> int:
         hot = inferred.industries
         header = inferred.lines
     names = rank(loaded, hot)
-    xlsx_path = Path(args.xlsx) if args.xlsx.strip() else default_xlsx_path(args.csv)
+    xlsx_path = Path(args.xlsx).expanduser() if args.xlsx.strip() else default_xlsx_path(source)
     write_xlsx(xlsx_path, names, header)
     sys.stdout.write(format_report(names, header))
     sys.stderr.write(f"已写入 {xlsx_path}\n")
