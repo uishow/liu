@@ -16,6 +16,9 @@ The score follows the close-list screen used on these reports:
   those names green, and one name still inside the primary band.
   Pass --hot only to override that
 
+The same ranking is written to an Excel file beside the input. The default
+name adds ``_次日排序`` before ``.xlsx``.
+
 Example:
     python rank_qiandai.py 钱袋_20261013_收盘.csv
 """
@@ -26,8 +29,11 @@ import argparse
 import csv
 import statistics
 import sys
+import zipfile
 from collections import defaultdict
 from dataclasses import dataclass
+from pathlib import Path
+from xml.sax.saxutils import escape
 
 
 EXTENDED_PCT = 4.0
@@ -358,6 +364,185 @@ def parse_hot(text: str) -> set[str]:
     return {part.strip() for part in text.split(",") if part.strip()}
 
 
+def default_xlsx_path(csv_path: str) -> Path:
+    source = Path(csv_path)
+    return source.with_name(source.stem + "_次日排序.xlsx")
+
+
+_HEADERS = ("分组", "代码", "名称", "涨幅%", "收盘K10", "昨收K10", "口径", "行业", "分数", "说明")
+
+
+def _col_name(index: int) -> str:
+    name = ""
+    while index:
+        index, remainder = divmod(index - 1, 26)
+        name = chr(65 + remainder) + name
+    return name
+
+
+def _inline(ref: str, text: str, style: int) -> str:
+    return (
+        f'<c r="{ref}" t="inlineStr" s="{style}">'
+        f'<is><t xml:space="preserve">{escape(text)}</t></is></c>'
+    )
+
+
+def _number(ref: str, value: float, style: int) -> str:
+    return f'<c r="{ref}" s="{style}"><v>{value:.10g}</v></c>'
+
+
+def _styles_xml() -> str:
+    fonts = """
+    <fonts count="2">
+      <font><sz val="11"/><name val="Calibri"/></font>
+      <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+    </fonts>"""
+    fills = """
+    <fills count="7">
+      <fill><patternFill patternType="none"/></fill>
+      <fill><patternFill patternType="gray125"/></fill>
+      <fill><patternFill patternType="solid"><fgColor rgb="FF1F4E3D"/></patternFill></fill>
+      <fill><patternFill patternType="solid"><fgColor rgb="FFE5F2EA"/></patternFill></fill>
+      <fill><patternFill patternType="solid"><fgColor rgb="FFFFF6D8"/></patternFill></fill>
+      <fill><patternFill patternType="solid"><fgColor rgb="FFF3F4F6"/></patternFill></fill>
+      <fill><patternFill patternType="solid"><fgColor rgb="FFF8E8E8"/></patternFill></fill>
+    </fills>"""
+    xfs = [
+        '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>',
+        '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>',
+    ]
+    # 2 + bucket * 4 + kind, kind: 0 text, 1 percent, 2 K10, 3 score.
+    number_formats = (49, 2, 164, 165)
+    for fill_id in (3, 4, 5, 6):
+        for num_fmt in number_formats:
+            xfs.append(
+                f'<xf numFmtId="{num_fmt}" fontId="0" fillId="{fill_id}" borderId="0" '
+                f'xfId="0" applyNumberFormat="1" applyFill="1"/>'
+            )
+    return f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <numFmts count="2">
+    <numFmt numFmtId="164" formatCode="0.000"/>
+    <numFmt numFmtId="165" formatCode="0.0"/>
+  </numFmts>
+  {fonts}
+  {fills}
+  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="{len(xfs)}">{''.join(xfs)}</cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>
+"""
+
+
+def _style_for(bucket: str, kind: int) -> int:
+    order = ("优先", "其次", "弱区已走完", "排除")
+    return 2 + order.index(bucket) * 4 + kind
+
+
+def _ranking_sheet(names: list[Name]) -> str:
+    rows = [
+        "<row r=\"1\">"
+        + "".join(_inline(f"{_col_name(i)}1", title, 1) for i, title in enumerate(_HEADERS, start=1))
+        + "</row>"
+    ]
+    for offset, item in enumerate(names, start=2):
+        text_style = _style_for(item.bucket, 0)
+        cells = [
+            _inline(f"A{offset}", item.bucket, text_style),
+            _inline(f"B{offset}", item.code, text_style),
+            _inline(f"C{offset}", item.name, text_style),
+            _number(f"D{offset}", item.pct, _style_for(item.bucket, 1)),
+            _number(f"E{offset}", item.k10, _style_for(item.bucket, 2)),
+            _number(f"F{offset}", item.k10_prev, _style_for(item.bucket, 2)),
+            _inline(f"G{offset}", item.caliber, text_style),
+            _inline(f"H{offset}", item.industry, text_style),
+            _number(f"I{offset}", item.score, _style_for(item.bucket, 3)),
+            _inline(f"J{offset}", item.reason, text_style),
+        ]
+        rows.append(f'<row r="{offset}">{"".join(cells)}</row>')
+    last = max(1, len(names) + 1)
+    widths = (10, 10, 12, 10, 12, 12, 16, 14, 8, 28)
+    cols = "".join(
+        f'<col min="{i}" max="{i}" width="{width}" customWidth="1"/>'
+        for i, width in enumerate(widths, start=1)
+    )
+    return f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <dimension ref="A1:J{last}"/>
+  <sheetViews><sheetView workbookViewId="0">
+    <pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>
+    <selection pane="bottomLeft" activeCell="A2" sqref="A2"/>
+  </sheetView></sheetViews>
+  <cols>{cols}</cols>
+  <sheetData>{''.join(rows)}</sheetData>
+  <autoFilter ref="A1:J{last}"/>
+</worksheet>
+"""
+
+
+def _notes_sheet(header: list[str]) -> str:
+    rows = []
+    for offset, line in enumerate(header or ["（无说明）"], start=1):
+        rows.append(f'<row r="{offset}">{_inline(f"A{offset}", line, 0)}</row>')
+    last = max(1, len(header))
+    return f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <dimension ref="A1:A{last}"/>
+  <cols><col min="1" max="1" width="88" customWidth="1"/></cols>
+  <sheetData>{''.join(rows)}</sheetData>
+</worksheet>
+"""
+
+
+def write_xlsx(path: str | Path, names: list[Name], header: list[str]) -> None:
+    target = Path(path)
+    package = {
+        "[Content_Types].xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>
+""",
+        "_rels/.rels": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>
+""",
+        "xl/workbook.xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="排序" sheetId="1" r:id="rId1"/>
+    <sheet name="说明" sheetId="2" r:id="rId2"/>
+  </sheets>
+</workbook>
+""",
+        "xl/_rels/workbook.xml.rels": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>
+""",
+        "xl/styles.xml": _styles_xml(),
+        "xl/worksheets/sheet1.xml": _ranking_sheet(names),
+        "xl/worksheets/sheet2.xml": _notes_sheet(header),
+    }
+    temporary = target.with_name(target.name + ".tmp")
+    try:
+        with zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for name, payload in package.items():
+                archive.writestr(name, payload)
+        temporary.replace(target)
+    except OSError as exc:
+        temporary.unlink(missing_ok=True)
+        raise SystemExit(f"写不了 Excel: {target} ({exc})") from exc
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="给收盘弱钱袋清单排下一交易日的相对顺序")
     parser.add_argument("csv", help="收盘清单 CSV")
@@ -365,6 +550,11 @@ def main(argv: list[str] | None = None) -> int:
         "--hot",
         default="",
         help="覆盖自动算出的领涨行业，逗号分隔。默认从清单里的行业涨幅计算",
+    )
+    parser.add_argument(
+        "--xlsx",
+        default="",
+        help="结果 Excel 路径。默认写到清单旁边，文件名加 _次日排序",
     )
     args = parser.parse_args(argv)
     loaded = load_rows(args.csv)
@@ -376,7 +566,10 @@ def main(argv: list[str] | None = None) -> int:
         hot = inferred.industries
         header = inferred.lines
     names = rank(loaded, hot)
+    xlsx_path = Path(args.xlsx) if args.xlsx.strip() else default_xlsx_path(args.csv)
+    write_xlsx(xlsx_path, names, header)
     sys.stdout.write(format_report(names, header))
+    sys.stderr.write(f"已写入 {xlsx_path}\n")
     return 0
 
 
