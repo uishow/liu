@@ -18,10 +18,11 @@ The score follows the close-list screen used on these reports:
 
 The same ranking is written to Excel. By default the workbook lands in
 ``reports/live`` and the file name adds ``_次日排序`` before ``.xlsx``.
-A bare file name is looked up in that directory. The script is executable.
+A bare file name is looked up in that directory. ``rank_qiandai.command``
+is the double-clickable command; it calls this script.
 
 Example:
-    guess/rank_qiandai.py 钱袋_20261013_收盘.csv
+    guess/rank_qiandai.command 钱袋_20261013_收盘.csv
 """
 
 from __future__ import annotations
